@@ -1,0 +1,11 @@
+/private/tmp/MassTransitKafkaDemo/Messages/bin/Debug/net9.0/Messages.deps.json
+/private/tmp/MassTransitKafkaDemo/Messages/bin/Debug/net9.0/Messages.dll
+/private/tmp/MassTransitKafkaDemo/Messages/bin/Debug/net9.0/Messages.pdb
+/private/tmp/MassTransitKafkaDemo/Messages/obj/Debug/net9.0/Messages.GeneratedMSBuildEditorConfig.editorconfig
+/private/tmp/MassTransitKafkaDemo/Messages/obj/Debug/net9.0/Messages.AssemblyInfoInputs.cache
+/private/tmp/MassTransitKafkaDemo/Messages/obj/Debug/net9.0/Messages.AssemblyInfo.cs
+/private/tmp/MassTransitKafkaDemo/Messages/obj/Debug/net9.0/Messages.csproj.CoreCompileInputs.cache
+/private/tmp/MassTransitKafkaDemo/Messages/obj/Debug/net9.0/Messages.dll
+/private/tmp/MassTransitKafkaDemo/Messages/obj/Debug/net9.0/refint/Messages.dll
+/private/tmp/MassTransitKafkaDemo/Messages/obj/Debug/net9.0/Messages.pdb
+/private/tmp/MassTransitKafkaDemo/Messages/obj/Debug/net9.0/ref/Messages.dll
