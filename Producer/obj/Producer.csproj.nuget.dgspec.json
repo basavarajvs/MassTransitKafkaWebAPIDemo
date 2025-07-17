@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/private/tmp/MassTransitKafkaDemo/Producer/Producer.csproj": {}
+    "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Producer/Producer.csproj": {}
   },
   "projects": {
-    "/private/tmp/MassTransitKafkaDemo/Messages/Messages.csproj": {
+    "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Messages/Messages.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/private/tmp/MassTransitKafkaDemo/Messages/Messages.csproj",
+        "projectUniqueName": "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Messages/Messages.csproj",
         "projectName": "Messages",
-        "projectPath": "/private/tmp/MassTransitKafkaDemo/Messages/Messages.csproj",
+        "projectPath": "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Messages/Messages.csproj",
         "packagesPath": "/Users/basavaraj.varji.siddappa/.nuget/packages/",
-        "outputPath": "/private/tmp/MassTransitKafkaDemo/Messages/obj/",
+        "outputPath": "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Messages/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/Users/basavaraj.varji.siddappa/.nuget/NuGet/NuGet.Config"
@@ -63,14 +63,14 @@
         }
       }
     },
-    "/private/tmp/MassTransitKafkaDemo/Producer/Producer.csproj": {
+    "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Producer/Producer.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/private/tmp/MassTransitKafkaDemo/Producer/Producer.csproj",
+        "projectUniqueName": "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Producer/Producer.csproj",
         "projectName": "Producer",
-        "projectPath": "/private/tmp/MassTransitKafkaDemo/Producer/Producer.csproj",
+        "projectPath": "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Producer/Producer.csproj",
         "packagesPath": "/Users/basavaraj.varji.siddappa/.nuget/packages/",
-        "outputPath": "/private/tmp/MassTransitKafkaDemo/Producer/obj/",
+        "outputPath": "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Producer/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/Users/basavaraj.varji.siddappa/.nuget/NuGet/NuGet.Config"
@@ -85,8 +85,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "/private/tmp/MassTransitKafkaDemo/Messages/Messages.csproj": {
-                "projectPath": "/private/tmp/MassTransitKafkaDemo/Messages/Messages.csproj"
+              "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Messages/Messages.csproj": {
+                "projectPath": "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Messages/Messages.csproj"
               }
             }
           }
@@ -122,6 +122,10 @@
             "Microsoft.Extensions.Logging": {
               "target": "Package",
               "version": "[9.0.7, )"
+            },
+            "Swashbuckle.AspNetCore": {
+              "target": "Package",
+              "version": "[9.0.3, )"
             }
           },
           "imports": [
@@ -136,6 +140,9 @@
           "assetTargetFallback": true,
           "warn": true,
           "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }

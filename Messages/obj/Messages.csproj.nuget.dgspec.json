@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/private/tmp/MassTransitKafkaDemo/Messages/Messages.csproj": {}
+    "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Messages/Messages.csproj": {}
   },
   "projects": {
-    "/private/tmp/MassTransitKafkaDemo/Messages/Messages.csproj": {
+    "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Messages/Messages.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/private/tmp/MassTransitKafkaDemo/Messages/Messages.csproj",
+        "projectUniqueName": "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Messages/Messages.csproj",
         "projectName": "Messages",
-        "projectPath": "/private/tmp/MassTransitKafkaDemo/Messages/Messages.csproj",
+        "projectPath": "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Messages/Messages.csproj",
         "packagesPath": "/Users/basavaraj.varji.siddappa/.nuget/packages/",
-        "outputPath": "/private/tmp/MassTransitKafkaDemo/Messages/obj/",
+        "outputPath": "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Messages/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/Users/basavaraj.varji.siddappa/.nuget/NuGet/NuGet.Config"

@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "Er6xEvi3RqQ=",
+  "dgSpecHash": "GQPpqfavV6U=",
   "success": true,
-  "projectFilePath": "/private/tmp/MassTransitKafkaDemo/Messages/Messages.csproj",
+  "projectFilePath": "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Messages/Messages.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }

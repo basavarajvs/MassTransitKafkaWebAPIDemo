@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "ktncJE2iKlk=",
+  "dgSpecHash": "Ud/51Tv5qv8=",
   "success": true,
-  "projectFilePath": "/private/tmp/MassTransitKafkaDemo/Producer/Producer.csproj",
+  "projectFilePath": "/Users/basavaraj.varji.siddappa/Projects/Learn/MassTransitKafkaDemo/Producer/Producer.csproj",
   "expectedPackageFiles": [
     "/Users/basavaraj.varji.siddappa/.nuget/packages/confluent.kafka/2.11.0/confluent.kafka.2.11.0.nupkg.sha512",
     "/Users/basavaraj.varji.siddappa/.nuget/packages/librdkafka.redist/2.11.0/librdkafka.redist.2.11.0.nupkg.sha512",
@@ -10,6 +10,7 @@
     "/Users/basavaraj.varji.siddappa/.nuget/packages/masstransit.abstractions/8.5.1/masstransit.abstractions.8.5.1.nupkg.sha512",
     "/Users/basavaraj.varji.siddappa/.nuget/packages/masstransit.extensions.dependencyinjection/7.3.1/masstransit.extensions.dependencyinjection.7.3.1.nupkg.sha512",
     "/Users/basavaraj.varji.siddappa/.nuget/packages/masstransit.kafka/8.5.1/masstransit.kafka.8.5.1.nupkg.sha512",
+    "/Users/basavaraj.varji.siddappa/.nuget/packages/microsoft.extensions.apidescription.server/9.0.0/microsoft.extensions.apidescription.server.9.0.0.nupkg.sha512",
     "/Users/basavaraj.varji.siddappa/.nuget/packages/microsoft.extensions.configuration/9.0.7/microsoft.extensions.configuration.9.0.7.nupkg.sha512",
     "/Users/basavaraj.varji.siddappa/.nuget/packages/microsoft.extensions.configuration.abstractions/9.0.7/microsoft.extensions.configuration.abstractions.9.0.7.nupkg.sha512",
     "/Users/basavaraj.varji.siddappa/.nuget/packages/microsoft.extensions.configuration.binder/9.0.7/microsoft.extensions.configuration.binder.9.0.7.nupkg.sha512",
@@ -39,6 +40,11 @@
     "/Users/basavaraj.varji.siddappa/.nuget/packages/microsoft.extensions.options/9.0.7/microsoft.extensions.options.9.0.7.nupkg.sha512",
     "/Users/basavaraj.varji.siddappa/.nuget/packages/microsoft.extensions.options.configurationextensions/9.0.7/microsoft.extensions.options.configurationextensions.9.0.7.nupkg.sha512",
     "/Users/basavaraj.varji.siddappa/.nuget/packages/microsoft.extensions.primitives/9.0.7/microsoft.extensions.primitives.9.0.7.nupkg.sha512",
+    "/Users/basavaraj.varji.siddappa/.nuget/packages/microsoft.openapi/1.6.23/microsoft.openapi.1.6.23.nupkg.sha512",
+    "/Users/basavaraj.varji.siddappa/.nuget/packages/swashbuckle.aspnetcore/9.0.3/swashbuckle.aspnetcore.9.0.3.nupkg.sha512",
+    "/Users/basavaraj.varji.siddappa/.nuget/packages/swashbuckle.aspnetcore.swagger/9.0.3/swashbuckle.aspnetcore.swagger.9.0.3.nupkg.sha512",
+    "/Users/basavaraj.varji.siddappa/.nuget/packages/swashbuckle.aspnetcore.swaggergen/9.0.3/swashbuckle.aspnetcore.swaggergen.9.0.3.nupkg.sha512",
+    "/Users/basavaraj.varji.siddappa/.nuget/packages/swashbuckle.aspnetcore.swaggerui/9.0.3/swashbuckle.aspnetcore.swaggerui.9.0.3.nupkg.sha512",
     "/Users/basavaraj.varji.siddappa/.nuget/packages/system.diagnostics.eventlog/9.0.7/system.diagnostics.eventlog.9.0.7.nupkg.sha512"
   ],
   "logs": []

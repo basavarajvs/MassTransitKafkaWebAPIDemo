@@ -1,107 +1,49 @@
-# MassTransit Kafka Sample Project
+# MassTransit Kafka Web API Demo
 
-This project demonstrates a basic Producer-Consumer setup using MassTransit with Kafka as the message broker in a .NET environment.
+This project demonstrates how to use MassTransit with Kafka in a .NET 9 Web API application. It consists of two main components:
 
-## Project Structure
-
-- `MassTransitKafkaSample.sln`: The solution file.
-- `Producer/`: A .NET Core console application that sends messages to a Kafka topic.
-- `Consumer/`: A .NET Core console application that consumes messages from the same Kafka topic.
-- `Messages/`: A .NET Standard class library containing the shared message contract (`Message.cs`).
-
-## Prerequisites
-
-- [.NET SDK](https://dotnet.microsoft.com/download) (version 9.0 or later)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop) (for running Kafka locally)
+- **Api**: A Web API that consumes messages from Kafka and stores them in an SQLite database. It also exposes an API endpoint to retrieve the stored messages.
+- **Producer**: A Web API that exposes an endpoint to send messages to Kafka.
 
 ## Getting Started
 
-### 1. Run Kafka using Docker
+### Prerequisites
 
-Open your terminal and run the following command to start a Kafka broker and Zookeeper. This command configures Kafka to advertise on `127.0.0.1:9092`, which matches the application's configuration.
+- .NET 9 SDK
+- Kafka (e.g., using Docker or a local installation)
 
-```bash
-docker run --rm -p 9092:9092 \
-  -e KAFKA_NODE_ID=1 \
-  -e KAFKA_PROCESS_ROLES=broker,controller \
-  -e KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093 \
-  -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092 \
-  -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
-  -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT \
-  -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:29093 \
-  -e CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk \
-  -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
-  -e KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1 \
-  -e KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1 \
-  confluentinc/cp-kafka:latest
-```
+### Running the Application
 
-Keep this terminal window open as long as you want Kafka to be running.
+1.  **Start Kafka**: Ensure your Kafka instance is running and accessible at `127.0.0.1:9092`.
 
-### 2. Create the Kafka Topic
+2.  **Run the Api Project (Consumer)**:
+    Open a terminal, navigate to the `Api` directory, and run:
+    ```bash
+    dotnet run
+    ```
+    The API will be accessible at `https://localhost:7019` (HTTPS) or `http://localhost:5026` (HTTP).
+    You can access the Swagger UI for the Api project at `https://localhost:7019/swagger`.
 
-Even with `auto.create.topics.enable` enabled, it's good practice to explicitly create the topic to avoid timing issues. Open a **new** terminal and execute the following commands:
+3.  **Run the Producer Project**:
+    Open another terminal, navigate to the `Producer` directory, and run:
+    ```bash
+    dotnet run
+    ```
+    The Producer API will be accessible at `http://localhost:5001`.
+    You can access the Swagger UI for the Producer project at `http://localhost:5001/swagger`.
 
-First, find the `CONTAINER ID` of your running Kafka container:
-```bash
-docker ps
-```
+### Sending Messages
 
-Then, execute a bash shell inside the container (replace `<CONTAINER_ID>` with your actual ID):
-```bash
-docker exec -it <CONTAINER_ID> bash
-```
+1.  Open the Producer Swagger UI in your browser: `http://localhost:5001/swagger`.
+2.  Use the `POST /Producer` endpoint to send messages. The `text` parameter is the message content.
 
-Once inside the container, create the topic:
-```bash
-kafka-topics --create --topic my-topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
-```
+### Retrieving Messages
 
-You can verify the topic was created:
-```bash
-kafka-topics --list --bootstrap-server localhost:9092
-```
+1.  Open the Api Swagger UI in your browser: `https://localhost:7019/swagger`.
+2.  Use the `GET /Messages` endpoint to retrieve all messages stored in the SQLite database.
 
-Exit the Docker container's shell:
-```bash
-exit
-```
+## Project Structure
 
-### 3. Build the Project
-
-Navigate to the root of the project directory (`MassTransitKafkaDemo`) in your terminal and build the solution:
-
-```bash
-cd MassTransitKafkaDemo
-dotnet build
-```
-
-### 4. Run the Consumer Application
-
-Open a **new** terminal window, navigate to the `Consumer` project directory, and run it:
-
-```bash
-cd MassTransitKafkaDemo/Consumer
-dotnet run
-```
-
-You should see output indicating the consumer has started.
-
-### 5. Run the Producer Application
-
-Open another **new** terminal window, navigate to the `Producer` project directory, and run it:
-
-```bash
-cd MassTransitKafkaDemo/Producer
-dotnet run
-```
-
-The Producer will start sending messages to the `my-topic` Kafka topic. You should see these messages being received and logged by the Consumer application in its terminal.
-
-## Troubleshooting
-
-- **"Connection refused"**: Ensure your Kafka Docker container is running and that `KAFKA_ADVERTISED_LISTENERS` is set to `PLAINTEXT://127.0.0.1:9092` in your Docker run command.
-- **"Unknown topic or partition"**: Ensure the `my-topic` Kafka topic has been explicitly created using the `kafka-topics.sh` command as described above.
-- **Messages not appearing in Consumer**: Verify the Producer is sending messages (check its console output). Ensure only one instance of the Consumer is running. Check Kafka topic offsets and consumer group status using `kafka-get-offsets` and `kafka-consumer-groups --describe` commands within the Docker container to see if messages are accumulating or being processed.
-
-```
+- `Api/`: The Web API project that consumes Kafka messages and stores them in SQLite.
+- `Producer/`: The Web API project that produces Kafka messages.
+- `Messages/`: A shared project containing the `Message` record definition.
