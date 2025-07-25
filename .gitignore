@@ -1,12 +1,6 @@
-bin/
-obj/
-objs/
-*.dll
-*.exe
-.vs/
-.vscode/
-.idea/
+**/bin
+**/obj
 *.user
 *.suo
-*.pdb
 *.log
+*.db
