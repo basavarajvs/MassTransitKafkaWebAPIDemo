@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Messages;
+using Api.Infrastructure;
 
 namespace Api.Controllers
 {
