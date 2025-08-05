@@ -78,6 +78,44 @@ namespace Api.Migrations
                     b.ToTable("SagaStates");
                 });
 
+            modelBuilder.Entity("Api.Infrastructure.OutboxEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Processed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ScheduledFor")
+                        .HasColumnType("datetime");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Processed", "ScheduledFor")
+                        .HasDatabaseName("IX_OutboxEvents_Processed_ScheduledFor");
+
+                    b.ToTable("OutboxEvents");
+                });
+
             modelBuilder.Entity("Messages.Message", b =>
                 {
                     b.Property<Guid>("Id")

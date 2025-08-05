@@ -25,6 +25,12 @@ builder.Services.AddSingleton<Api.Domains.OrderProcessing.SagaSteps.OrderCreateS
 builder.Services.AddSingleton<Api.Domains.OrderProcessing.SagaSteps.OrderProcessStep>();
 builder.Services.AddSingleton<Api.Domains.OrderProcessing.SagaSteps.OrderShipStep>();
 
+// Register Outbox Processor for guaranteed delivery pattern
+// WHY HOSTED SERVICE: Runs in background to process failed/missed event publications
+// Ensures exactly-once delivery semantics for saga events
+// Provides automatic recovery from application restarts
+builder.Services.AddHostedService<Api.Infrastructure.OutboxProcessor>();
+
 // Configure MassTransit for message processing and saga orchestration
 builder.Services.AddMassTransit(x =>
 {

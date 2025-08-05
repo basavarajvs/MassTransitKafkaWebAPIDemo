@@ -14,6 +14,7 @@ namespace Api.Infrastructure
 
         public DbSet<Message> Messages { get; set; }
         public DbSet<OrderProcessingSagaState> SagaStates { get; set; }
+        public DbSet<OutboxEvent> OutboxEvents { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -50,6 +51,38 @@ namespace Api.Infrastructure
                 entity.Property(e => e.OrderProcessResponse).HasColumnType("TEXT");
                 entity.Property(e => e.OrderShipResponse).HasColumnType("TEXT");
                 entity.Property(e => e.LastError).HasColumnType("TEXT");
+            });
+
+            // Configure Outbox Event for guaranteed delivery pattern
+            modelBuilder.Entity<OutboxEvent>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                
+                // Optimize for common queries: unprocessed events ordered by schedule time
+                entity.HasIndex(e => new { e.Processed, e.ScheduledFor })
+                    .HasDatabaseName("IX_OutboxEvents_Processed_ScheduledFor");
+                
+                // Event type for deserialization routing
+                entity.Property(e => e.EventType)
+                    .HasMaxLength(100)
+                    .IsRequired();
+                
+                // JSON payload storage
+                entity.Property(e => e.Payload)
+                    .HasColumnType("TEXT")
+                    .IsRequired();
+                
+                // Error tracking for failed events
+                entity.Property(e => e.LastError)
+                    .HasColumnType("TEXT");
+                
+                // Ensure timestamps are precise
+                entity.Property(e => e.ScheduledFor)
+                    .HasColumnType("datetime")
+                    .IsRequired();
+                
+                entity.Property(e => e.ProcessedAt)
+                    .HasColumnType("datetime");
             });
         }
     }
