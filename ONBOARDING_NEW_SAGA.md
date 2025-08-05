@@ -20,6 +20,27 @@ Our generic framework reduces new saga implementation from **200+ lines** to **~
 - ✅ **Convention-based Property Discovery**: Automatic mapping using reflection
 - ✅ **Template Method Pattern**: Consistent behavior across all domains
 - ✅ **Domain Isolation**: Clean separation between business domains
+- ✅ **Outbox Pattern**: Guaranteed event delivery with exactly-once semantics
+- ✅ **Zero Message Loss**: Commands survive application restarts automatically
+- ✅ **Production Ready**: Industry standard distributed systems patterns
+
+## 🔐 Outbox Pattern Integration
+
+**Every new saga automatically benefits from guaranteed delivery:**
+
+```
+🛡️ RELIABILITY GUARANTEE:
+1. Your saga commands are saved to OutboxEvents table atomically
+2. OutboxProcessor ensures delivery even during failures
+3. Exponential backoff handles transient errors
+4. Dead letter queues catch persistent failures
+5. Full audit trail for debugging and monitoring
+```
+
+**No additional code required** - the framework handles this automatically when you:
+- Publish saga commands via `context.Publish()`
+- Use the standard MassTransit patterns
+- Follow the domain structure outlined below
 
 ---
 

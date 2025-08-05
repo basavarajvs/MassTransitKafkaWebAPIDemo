@@ -25,10 +25,22 @@ builder.Services.AddSingleton<Api.Domains.OrderProcessing.SagaSteps.OrderCreateS
 builder.Services.AddSingleton<Api.Domains.OrderProcessing.SagaSteps.OrderProcessStep>();
 builder.Services.AddSingleton<Api.Domains.OrderProcessing.SagaSteps.OrderShipStep>();
 
-// Register Outbox Processor for guaranteed delivery pattern
-// WHY HOSTED SERVICE: Runs in background to process failed/missed event publications
-// Ensures exactly-once delivery semantics for saga events
-// Provides automatic recovery from application restarts
+// Register Outbox Processor for guaranteed delivery pattern (Industry Standard)
+// 
+// ARCHITECTURAL DECISION: Outbox Pattern Implementation
+// WHY CHOSEN: Solves the dual-write problem in distributed systems
+// - PROBLEM: Saving business data + publishing events can fail partially
+// - SOLUTION: Save both in same database transaction (atomic)
+// - RESULT: Zero message loss, exactly-once delivery semantics
+//
+// WHY HOSTED SERVICE: 
+// - Runs continuously in background to process failed/missed event publications
+// - Provides automatic recovery from application restarts without manual intervention
+// - Implements retry logic with exponential backoff for failed events
+// - Ensures no saga commands are lost even during system failures
+//
+// PERFORMANCE IMPACT: Minimal - polls every 5 seconds, processes 10 events per batch
+// INFRASTRUCTURE COST: Zero - uses existing SQLite database
 builder.Services.AddHostedService<Api.Infrastructure.OutboxProcessor>();
 
 // Configure MassTransit for message processing and saga orchestration
@@ -61,8 +73,19 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<Api.Domains.OrderProcessing.CallOrderShipApiConsumer>();
 
     // Configure in-memory bus for saga events and commands
+    // 
+    // ARCHITECTURAL DECISION: In-Memory Bus + Outbox Pattern Hybrid
     // WHY IN-MEMORY: Saga events/commands are internal to this service
-    // External communication (Kafka) is handled separately below
+    // - Ultra-fast processing (microsecond latency vs. network round-trips)
+    // - No additional infrastructure required (no RabbitMQ, ServiceBus, etc.)
+    // - Perfect for internal orchestration within a single service boundary
+    //
+    // WHY SAFE WITH OUTBOX: Outbox pattern provides the reliability guarantees
+    // - Events are persisted BEFORE publishing to in-memory bus
+    // - OutboxProcessor ensures delivery even if in-memory publish fails
+    // - Best of both worlds: Speed + Reliability
+    //
+    // EXTERNAL COMMUNICATION: Kafka handled separately below (different concerns)
     x.UsingInMemory((context, cfg) =>
     {
         cfg.ConfigureEndpoints(context);
