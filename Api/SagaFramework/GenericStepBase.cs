@@ -6,7 +6,7 @@ namespace Api.SagaFramework
     /// Generic step base class using Factory Interface Pattern for optimal performance.
     /// 
     /// PERFORMANCE CHARACTERISTICS:
-    /// - 68x faster command creation (7ns vs 480ns reflection)
+    /// - Direct command creation
     /// - No reflection overhead
     /// - Compile-time safety
     /// - Clear debugging experience

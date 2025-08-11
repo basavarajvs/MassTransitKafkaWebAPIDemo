@@ -4,7 +4,7 @@ namespace Api.SagaFramework
     /// Generic command factory interface - each command type implements this for fast, type-safe command creation.
     /// 
     /// WHY FACTORY INTERFACE PATTERN:
-    /// - 68x faster than reflection (7ns vs 480ns per call)
+    /// - Direct command creation
     /// - Compile-time safety vs runtime reflection errors
     /// - Crystal clear code paths vs complex reflection logic
     /// - Easy debugging and maintenance

@@ -8,7 +8,7 @@ namespace Api.Domains.OrderProcessing.SagaSteps
     /// Order Creation Step - Uses Factory Interface Pattern for optimal performance.
     /// 
     /// PERFORMANCE IMPROVEMENTS:
-    /// - 68x faster command creation (7ns vs 480ns)
+    /// - Direct command creation
     /// - No reflection overhead
     /// - Compile-time safety
     /// - Clear debugging experience

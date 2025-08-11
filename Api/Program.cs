@@ -18,7 +18,7 @@ builder.Services.AddDbContext<MessageDbContext>(options =>
 builder.Services.AddHttpClient();
 
 // Note: Step classes no longer need DI registration with Factory Interface Pattern
-// Sagas now use injected factories directly for command creation (68x faster)
+// Sagas now use injected factories directly for command creation
 
 // Register Outbox Processor for guaranteed delivery pattern (Industry Standard)
 // 

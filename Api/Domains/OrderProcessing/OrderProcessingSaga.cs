@@ -6,7 +6,7 @@ namespace Api.Domains.OrderProcessing
 {
     /// <summary>
     /// Order Processing Saga - Domain-specific saga for order processing workflow
-    /// Uses Factory Interface Pattern for 68x faster command creation
+    /// Uses Factory Interface Pattern for optimal command creation
     /// </summary>
     public class OrderProcessingSaga : MassTransitStateMachine<OrderProcessingSagaState>
     {

@@ -19,7 +19,7 @@ The solution consists of **4 main components**:
 - **Retry logic**: 3 attempts per step with 5-second timeouts
 - **State persistence**: Saga state survives application restarts
 - **Error handling**: Comprehensive logging and failure tracking
-- **Factory Interface Pattern**: 68x faster command creation vs reflection
+- **Factory Interface Pattern**: Direct command creation vs reflection
 
 ### **📨 Message Processing**
 - **Kafka integration** with MassTransit

@@ -18,8 +18,8 @@ namespace Api.Domains.OrderProcessing.CommandFactories
     /// - Easy to test: straightforward mocking
     /// 
     /// VERSUS REFLECTION APPROACH:
-    /// - 68x faster (5ns vs 480ns)
-    /// - 17x fewer lines to debug (3 vs 50+)
+    /// - Direct assignment
+    /// - Fewer lines to debug
     /// - Compile-time safety vs runtime errors
     /// - No magic framework behavior
     /// </summary>
