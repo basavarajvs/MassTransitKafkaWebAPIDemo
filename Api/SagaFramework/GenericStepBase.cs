@@ -3,10 +3,10 @@ using Messages;
 namespace Api.SagaFramework
 {
     /// <summary>
-    /// Enhanced generic step base class using Factory Interface Pattern for optimal performance.
+    /// Generic step base class using Factory Interface Pattern for optimal performance.
     /// 
-    /// PERFORMANCE IMPROVEMENT:
-    /// - 68x faster command creation (7ns vs 480ns)
+    /// PERFORMANCE CHARACTERISTICS:
+    /// - 68x faster command creation (7ns vs 480ns reflection)
     /// - No reflection overhead
     /// - Compile-time safety
     /// - Clear debugging experience
@@ -17,13 +17,16 @@ namespace Api.SagaFramework
     /// 3. Register factory in DI container
     /// 4. Framework handles the rest automatically
     /// 
-    /// BACKWARD COMPATIBILITY:
-    /// Maintains same public interface as original GenericStepBase
+    /// ARCHITECTURE BENEFITS:
+    /// - Explicit dependencies visible in constructor
+    /// - Type-safe command creation
+    /// - Easy unit testing with mocked factories
+    /// - Clear separation between command creation and business logic
     /// </summary>
     /// <typeparam name="TCommand">The command type this step creates</typeparam>
     /// <typeparam name="TData">The data type extracted from message</typeparam>
     /// <typeparam name="TSagaState">The saga state type</typeparam>
-    public abstract class EnhancedGenericStepBase<TCommand, TData, TSagaState>
+    public abstract class GenericStepBase<TCommand, TData, TSagaState>
         where TCommand : class
     {
         protected readonly ILogger _logger;
@@ -45,7 +48,7 @@ namespace Api.SagaFramework
         /// <param name="commandFactory">Fast, type-safe command factory</param>
         /// <param name="messageKey">Key to extract data from message StepData</param>
         /// <param name="maxRetries">Maximum retry attempts for this step</param>
-        protected EnhancedGenericStepBase(
+        protected GenericStepBase(
             ILogger logger, 
             ICommandFactory<TCommand, TData> commandFactory,
             string messageKey, 

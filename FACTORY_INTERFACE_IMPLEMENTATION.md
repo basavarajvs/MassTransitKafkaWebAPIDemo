@@ -22,10 +22,10 @@ This branch (`saga-factory-interface`) successfully implements the Factory Inter
    - 68x faster than reflection approach
    - Clear contract for all command factories
 
-2. **`Api/SagaFramework/EnhancedGenericStepBase.cs`**
-   - Enhanced base class using factory pattern
-   - Maintains same public interface as original
-   - Explicit dependency injection of factories
+2. **`Api/SagaFramework/GenericStepBase.cs`**
+   - Factory-based base class for optimal performance
+   - Clean, simple interface with explicit dependencies
+   - Type-safe command creation via factory injection
    - Clear error handling and debugging
 
 ### **Order Domain Command Factories**
@@ -48,7 +48,7 @@ This branch (`saga-factory-interface`) successfully implements the Factory Inter
 
 ### **Step Classes Enhanced**
 1. **`Api/Domains/OrderProcessing/SagaSteps/OrderCreateStep.cs`**
-   - Now inherits from `EnhancedGenericStepBase`
+   - Now inherits from `GenericStepBase` (factory-based)
    - Uses `OrderCreateCommandFactory` via dependency injection
    - Explicit state management methods
    - 68x faster command creation
@@ -121,8 +121,8 @@ public class EmailSendCommandFactory : ICommandFactory<SendEmailCommand, EmailDa
         => new() { CorrelationId = correlationId, EmailData = data, RetryCount = retryCount };
 }
 
-// 2. Enhanced step class (similar complexity)
-public class EmailSendStep : EnhancedGenericStepBase<SendEmailCommand, EmailData, EmailSagaState>
+// 2. Step class (similar complexity)
+public class EmailSendStep : GenericStepBase<SendEmailCommand, EmailData, EmailSagaState>
 {
     public EmailSendStep(ILogger<EmailSendStep> logger, EmailSendCommandFactory factory) 
         : base(logger, factory, "email-data", 3) { }

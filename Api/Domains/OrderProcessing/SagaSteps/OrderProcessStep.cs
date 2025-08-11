@@ -5,7 +5,7 @@ using Api.Domains.OrderProcessing.CommandFactories;
 namespace Api.Domains.OrderProcessing.SagaSteps
 {
     /// <summary>
-    /// Order Processing Step - Enhanced with Factory Interface Pattern for optimal performance.
+    /// Order Processing Step - Uses Factory Interface Pattern for optimal performance.
     /// 
     /// PERFORMANCE IMPROVEMENTS:
     /// - 68x faster command creation (7ns vs 480ns)
@@ -19,7 +19,7 @@ namespace Api.Domains.OrderProcessing.SagaSteps
     /// - Prepares order for shipping
     /// - Part of sequential order workflow
     /// </summary>
-    public class OrderProcessStep : EnhancedGenericStepBase<CallOrderProcessApi, object, OrderProcessingSagaState>
+    public class OrderProcessStep : GenericStepBase<CallOrderProcessApi, object, OrderProcessingSagaState>
     {
         /// <summary>
         /// Constructor using dependency injection with explicit factory.
