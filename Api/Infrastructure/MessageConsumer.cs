@@ -65,9 +65,12 @@ namespace Api.Infrastructure
             // Log message receipt for monitoring and debugging
             _logger.LogInformation($"📨 MessageConsumer received message with ID: {message.Id}");
             
-            // Generate new correlation ID for saga tracking (separate from message ID)
-            // WHY SEPARATE ID: Allows multiple saga instances for same message if needed
-            var sagaCorrelationId = Guid.NewGuid();
+            // Use message ID as correlation ID for idempotency (prevents duplicate sagas)
+            // WHY MESSAGE ID: Ensures exactly-once saga processing per message
+            // - Same message always creates same correlation ID
+            // - Prevents duplicate saga creation on race conditions
+            // - Maintains business transaction integrity
+            var sagaCorrelationId = message.Id;
             
             // Create saga started event
             var sagaStartedEvent = new Api.Domains.OrderProcessing.OrderProcessingSagaStarted
