@@ -12,7 +12,7 @@ namespace Api.SagaFramework
         public required string StepName { get; init; }
         public required string MessageKey { get; init; }
         public int MaxRetries { get; init; } = 3;
-        public required string DataPropertyName { get; init; } // e.g., "OrderData", "PaymentData"
+        public required string DataPropertyName { get; init; } // e.g., "OrderData", "PaymentData", "EmailData", "NotificationData"
     }
 
     /// <summary>
@@ -238,14 +238,51 @@ namespace Api.SagaFramework
                 return instance;
             }
 
-            // For records with required properties, use object initialization
-            return (TCommand)Activator.CreateInstance(type, 
-                parameters["CorrelationId"], 
-                parameters.ContainsKey("OrderData") ? parameters["OrderData"] : 
-                parameters.ContainsKey("ProcessData") ? parameters["ProcessData"] : 
-                parameters.ContainsKey("ShipData") ? parameters["ShipData"] : 
-                parameters.Values.Skip(1).First(), // Skip CorrelationId, take the data parameter
-                parameters["RetryCount"])!;
+            // For records with required properties, use constructor parameter matching
+            var constructor = constructors.OrderByDescending(c => c.GetParameters().Length).FirstOrDefault();
+            if (constructor == null)
+                throw new InvalidOperationException($"No suitable constructor found for {type.Name}");
+
+            var constructorParams = constructor.GetParameters();
+            var args = new object[constructorParams.Length];
+            
+            for (int i = 0; i < constructorParams.Length; i++)
+            {
+                var param = constructorParams[i];
+                var paramName = param.Name!;
+                
+                // Try exact parameter name match first (case-insensitive)
+                var matchingKey = parameters.Keys.FirstOrDefault(k => 
+                    string.Equals(k, paramName, StringComparison.OrdinalIgnoreCase));
+                
+                if (matchingKey != null)
+                {
+                    args[i] = parameters[matchingKey];
+                }
+                else if (param.ParameterType == typeof(Guid))
+                {
+                    // Assume Guid parameter is CorrelationId
+                    args[i] = parameters.GetValueOrDefault("CorrelationId", Guid.Empty);
+                }
+                else if (param.ParameterType == typeof(int))
+                {
+                    // Assume int parameter is RetryCount
+                    args[i] = parameters.GetValueOrDefault("RetryCount", 0);
+                }
+                else
+                {
+                    // For remaining parameters, find the first unmatched value that isn't standard parameters
+                    var usedValues = new HashSet<object>();
+                    if (parameters.ContainsKey("CorrelationId")) usedValues.Add(parameters["CorrelationId"]);
+                    if (parameters.ContainsKey("RetryCount")) usedValues.Add(parameters["RetryCount"]);
+                    
+                    var dataValue = parameters.Values.FirstOrDefault(v => !usedValues.Contains(v));
+                    args[i] = dataValue ?? throw new InvalidOperationException(
+                        $"Cannot find suitable value for parameter '{paramName}' of type {param.ParameterType.Name}");
+                }
+            }
+            
+            return (TCommand)Activator.CreateInstance(type, args)!;
         }
 
         private static bool SetPropertyIfExists(object obj, string propertyName, object value)
