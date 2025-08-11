@@ -43,6 +43,16 @@ builder.Services.AddSingleton<Api.Domains.OrderProcessing.SagaSteps.OrderShipSte
 // INFRASTRUCTURE COST: Zero - uses existing SQLite database
 builder.Services.AddHostedService<Api.Infrastructure.OutboxProcessor>();
 
+// Register command factories for Factory Interface Pattern
+// WHY EXPLICIT REGISTRATION: 
+// - Type-safe dependency injection
+// - Clear visibility of all factories
+// - Easy mocking for unit tests
+// - No reflection or magic registration
+builder.Services.AddScoped<Api.Domains.OrderProcessing.CommandFactories.OrderCreateCommandFactory>();
+builder.Services.AddScoped<Api.Domains.OrderProcessing.CommandFactories.OrderProcessCommandFactory>();
+builder.Services.AddScoped<Api.Domains.OrderProcessing.CommandFactories.OrderShipCommandFactory>();
+
 // Configure MassTransit for message processing and saga orchestration
 builder.Services.AddMassTransit(x =>
 {
