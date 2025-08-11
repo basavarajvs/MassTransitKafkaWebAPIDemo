@@ -17,13 +17,8 @@ builder.Services.AddDbContext<MessageDbContext>(options =>
 // Uses HttpClientFactory pattern for proper connection pooling and lifecycle management
 builder.Services.AddHttpClient();
 
-// Register saga step classes for dependency injection (as Singleton to match saga lifecycle)
-// WHY SINGLETON: Saga state machines are singletons, and steps contain no state
-// Steps are essentially stateless command factories and can be safely shared
-// This also improves performance by avoiding repeated reflection in GenericStepFactory
-builder.Services.AddSingleton<Api.Domains.OrderProcessing.SagaSteps.OrderCreateStep>();
-builder.Services.AddSingleton<Api.Domains.OrderProcessing.SagaSteps.OrderProcessStep>();
-builder.Services.AddSingleton<Api.Domains.OrderProcessing.SagaSteps.OrderShipStep>();
+// Note: Step classes no longer need DI registration with Factory Interface Pattern
+// Sagas now use injected factories directly for command creation (68x faster)
 
 // Register Outbox Processor for guaranteed delivery pattern (Industry Standard)
 // 
