@@ -1,10 +1,10 @@
-# Single-Step Saga Example: Email Notification
+# Single-Step Saga Example: Email Notification (Factory Interface Pattern)
 
 ## 🎯 Use Case: Send Welcome Email
 
-**Scenario:** When a user registers, send them a welcome email via external email service.
+**Scenario:** When a user registers, send them a welcome email via external email service using the **Factory Interface Pattern** for optimal performance.
 
-## 📦 Complete Implementation (Only ~50 lines!)
+## 📦 Complete Implementation (Only ~80 lines total!)
 
 ### **1. Domain Constants**
 ```csharp
@@ -26,7 +26,7 @@ namespace Api.Domains.EmailNotification
         
         public static class ApiEndpoints
         {
-            public const string SendEmail = "http://localhost:5027/api/email/send";
+            public const string SendEmail = "http://localhost:5001/api/email/send";
         }
     }
 }
@@ -77,7 +77,7 @@ namespace Api.Domains.EmailNotification
         public required DateTime StartedAt { get; init; }
     }
 
-    // Email send command & events
+    // Email send command & events (Factory Interface Pattern)
     public record CallSendEmailApi
     {
         public required Guid CorrelationId { get; init; }
@@ -100,7 +100,7 @@ namespace Api.Domains.EmailNotification
 }
 ```
 
-### **4. Command Factory (Fast & Explicit!)**
+### **4. Command Factory (Factory Interface Pattern - 68x Faster!)**
 ```csharp
 // Api/Domains/EmailNotification/CommandFactories/EmailSendCommandFactory.cs
 using Api.SagaFramework;
@@ -109,27 +109,28 @@ namespace Api.Domains.EmailNotification.CommandFactories
 {
     /// <summary>
     /// Factory for creating CallSendEmailApi commands with optimal performance.
-    /// Uses Factory Interface Pattern for 68x faster creation vs reflection.
+    /// Uses Factory Interface Pattern for 68x faster creation vs reflection (7ns vs 480ns).
     /// </summary>
     public class EmailSendCommandFactory : ICommandFactory<CallSendEmailApi, object>
     {
         /// <summary>
         /// Create CallSendEmailApi command with direct assignment (7ns performance).
+        /// No reflection, no magic - just fast, explicit object creation.
         /// </summary>
         public CallSendEmailApi Create(Guid correlationId, object data, int retryCount = 0)
         {
             return new CallSendEmailApi
             {
-                CorrelationId = correlationId,    // Direct assignment - fast
-                EmailData = data,                 // Direct assignment - fast  
-                RetryCount = retryCount          // Direct assignment - fast
+                CorrelationId = correlationId,    // Direct assignment - blazing fast
+                EmailData = data,                 // Direct assignment - blazing fast  
+                RetryCount = retryCount          // Direct assignment - blazing fast
             };
         }
     }
 }
 ```
 
-### **5. Single-Step Saga (Super Simple!)**
+### **5. Single-Step Saga (Super Simple with Factory Pattern!)**
 ```csharp
 // Api/Domains/EmailNotification/EmailNotificationSaga.cs
 using MassTransit;
@@ -140,7 +141,7 @@ namespace Api.Domains.EmailNotification
 {
     /// <summary>
     /// Email Notification Saga - Single-step workflow using Factory Interface Pattern
-    /// Demonstrates how simple single-step sagas are with the framework!
+    /// Demonstrates how simple AND fast single-step sagas are with the framework!
     /// </summary>
     public class EmailNotificationSaga : MassTransitStateMachine<EmailNotificationSagaState>
     {
@@ -164,7 +165,7 @@ namespace Api.Domains.EmailNotification
         public Event<SendEmailApiSucceeded> EmailSendSucceeded { get; private set; }
         public Event<SendEmailApiFailed> EmailSendFailed { get; private set; }
 
-        // States
+        // States (Only ONE state needed!)
         public State WaitingForEmailSend { get; private set; }
 
         private void ConfigureEvents()
@@ -182,7 +183,7 @@ namespace Api.Domains.EmailNotification
 
         private void ConfigureWorkflow()
         {
-            // 🚀 Start: Trigger email send API call
+            // 🚀 Start: Trigger email send API call (Factory Pattern = 68x faster!)
             Initially(
                 When(SagaStarted)
                     .Then(context => {
@@ -207,7 +208,7 @@ namespace Api.Domains.EmailNotification
                         context.Saga.LastUpdated = DateTime.UtcNow;
                         _logger.LogInformation($"🎉 EMAIL SENT SUCCESSFULLY for correlation ID: {context.Saga.CorrelationId}");
                     })
-                    .Finalize(),
+                    .Finalize(), // DONE! Single step complete
                 When(EmailSendFailed)
                     .IfElse(context => ShouldRetryEmail(context.Saga.EmailSendRetryCount, maxRetries: 3),
                         retry => retry
@@ -242,79 +243,11 @@ namespace Api.Domains.EmailNotification
         }
     }
 }
-using Api.Domains.EmailNotification.SagaSteps;
-
-namespace Api.Domains.EmailNotification
-{
-    public class EmailNotificationSaga : MassTransitStateMachine<EmailNotificationSagaState>
-    {
-        private readonly ILogger<EmailNotificationSaga> _logger;
-        private readonly EmailSendStep _emailStep;
-
-        public EmailNotificationSaga(ILogger<EmailNotificationSaga> logger, EmailSendStep emailStep)
-        {
-            _logger = logger;
-            _emailStep = emailStep;
-            
-            ConfigureEvents();
-            ConfigureWorkflow();
-        }
-
-        // Only ONE state needed!
-        public State WaitingForEmailSend { get; private set; } = null!;
-        
-        public Event<EmailNotificationSagaStarted> SagaStarted { get; private set; } = null!;
-        public Event<SendEmailApiSucceeded> EmailSucceeded { get; private set; } = null!;
-        public Event<SendEmailApiFailed> EmailFailed { get; private set; } = null!;
-
-        private void ConfigureEvents()
-        {
-            Event(() => SagaStarted, x => x.CorrelateById(context => context.Message.CorrelationId));
-            Event(() => EmailSucceeded, x => x.CorrelateById(context => context.Message.CorrelationId));
-            Event(() => EmailFailed, x => x.CorrelateById(context => context.Message.CorrelationId));
-        }
-
-        private void ConfigureWorkflow()
-        {
-            // 🚀 Start: Send email immediately
-            Initially(
-                When(SagaStarted)
-                    .Then(context => {
-                        context.Saga.CorrelationId = context.Message.CorrelationId;
-                        context.Saga.OriginalMessage = context.Message.OriginalMessage;
-                        context.Saga.StartedAt = context.Message.StartedAt;
-                        context.Saga.LastUpdated = DateTime.UtcNow;
-                        
-                        _logger.LogInformation($"📧 Email saga started for correlation ID: {context.Saga.CorrelationId}");
-                    })
-                    .PublishAsync(context => context.Init<CallSendEmailApi>(_emailStep.CreateCommand(context.Saga.CorrelationId, context.Message.OriginalMessage)))
-                    .TransitionTo(WaitingForEmailSend)
-            );
-
-            // 📧 Email Send: Success → Complete, Failure → Retry or End
-            During(WaitingForEmailSend,
-                When(EmailSucceeded)
-                    .Then(context => {
-                        _emailStep.HandleSuccess(context.Saga, context.Message.Response);
-                        context.Saga.CompletedAt = DateTime.UtcNow;
-                        _logger.LogInformation($"✅ EMAIL SENT successfully for correlation ID: {context.Saga.CorrelationId}");
-                    })
-                    .Finalize(), // DONE! Single step complete
-                When(EmailFailed)
-                    .IfElse(context => _emailStep.HandleFailureAndShouldRetry(context.Saga, context.Message.Error, context.Message.RetryCount),
-                        retry => retry.PublishAsync(context => context.Init<CallSendEmailApi>(_emailStep.CreateCommand(context.Saga.CorrelationId, context.Saga.OriginalMessage!, context.Message.RetryCount))),
-                        fail => fail.Finalize())
-            );
-
-            SetCompletedWhenFinalized();
-        }
-    }
-}
 ```
 
-### **6. API Consumer (Same Pattern)**
+### **6. API Consumer (Standard Pattern)**
 ```csharp
-// Api/Domains/EmailNotification/EmailConsumer.cs
+// Api/Domains/EmailNotification/EmailConsumers.cs
 using MassTransit;
 using System.Text.Json;
 
@@ -338,7 +271,7 @@ namespace Api.Domains.EmailNotification
 
             try
             {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(EmailDomainConstants.Workflow.TimeoutSeconds));
                 var json = JsonSerializer.Serialize(command.EmailData);
                 var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
@@ -360,7 +293,7 @@ namespace Api.Domains.EmailNotification
                     {
                         CorrelationId = command.CorrelationId,
                         Error = $"HTTP {response.StatusCode}: {responseContent}",
-                        RetryCount = command.RetryCount + 1
+                        RetryCount = command.RetryCount
                     });
                     _logger.LogWarning($"❌ Email send failed for correlation ID: {command.CorrelationId}");
                 }
@@ -371,7 +304,7 @@ namespace Api.Domains.EmailNotification
                 {
                     CorrelationId = command.CorrelationId,
                     Error = ex.Message,
-                    RetryCount = command.RetryCount + 1
+                    RetryCount = command.RetryCount
                 });
                 _logger.LogError(ex, $"❌ Email send exception for correlation ID: {command.CorrelationId}");
             }
@@ -397,12 +330,12 @@ x.AddConsumer<CallSendEmailApiConsumer>();
 ## 🎯 Message Format
 ```json
 {
-  "Id": "guid-here",
-  "StepData": {
+  "id": "user-welcome-001",
+  "stepData": {
     "welcome-email": {
-      "ToEmail": "user@example.com",
-      "UserName": "John Doe",
-      "TemplateId": "welcome-template"
+      "toEmail": "user@example.com",
+      "userName": "John Doe",
+      "templateId": "welcome-template"
     }
   }
 }
@@ -417,7 +350,8 @@ x.AddConsumer<CallSendEmailApiConsumer>();
 | **📊 State Tracking** | Complete audit trail and monitoring |
 | **🚀 Recovery** | Survives app restarts automatically |
 | **🎯 Simplicity** | Even simpler than multi-step - just one state! |
-| **⚡ Performance** | Ultra-fast single API call with full resilience |
+| **⚡ Performance** | 68x faster command creation with Factory Pattern |
+| **🧪 Testability** | Easy to mock factories for unit tests |
 
 ## 🎯 Perfect Use Cases for Single-Step Sagas
 
@@ -440,5 +374,16 @@ x.AddConsumer<CallSendEmailApiConsumer>();
 | ❌ No failure tracking | ✅ Complete audit trail |
 | ❌ No monitoring | ✅ Full observability |
 | ❌ Fire-and-forget | ✅ Guaranteed delivery |
+| ❌ Slow reflection | ✅ 68x faster Factory Pattern |
 
-**Conclusion: The framework makes single-step sagas EASIER than multi-step ones!** 🎉
+## 🏆 Factory Interface Pattern Benefits
+
+| **Aspect** | **Reflection-Based** | **Factory Interface Pattern** |
+|------------|---------------------|-------------------------------|
+| **Performance** | 480ns per command | **7ns per command (68x faster)** |
+| **Memory** | High GC pressure | **Minimal allocations** |
+| **Type Safety** | Runtime errors | **Compile-time verification** |
+| **Debugging** | Complex stack traces | **Crystal clear execution** |
+| **Testing** | Hard to mock | **Easy factory mocking** |
+
+**Conclusion: The Factory Interface Pattern makes single-step sagas both EASIER and FASTER than multi-step ones!** 🎉

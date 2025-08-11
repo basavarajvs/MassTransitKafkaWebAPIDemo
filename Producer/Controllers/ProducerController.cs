@@ -22,7 +22,7 @@ namespace Producer.Controllers
     /// - Allows for different authentication/authorization policies
     /// </summary>
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     public class ProducerController : ControllerBase
     {
         private readonly ITopicProducer<Message> _producer;
@@ -60,7 +60,7 @@ namespace Producer.Controllers
         /// Generate ID here if not provided, ensuring every message is trackable
         /// This supports both scenarios: client-generated IDs and server-generated IDs
         /// </summary>
-        [HttpPost]
+        [HttpPost("send")]
         public async Task<IActionResult> Post([FromBody] Message message)
         {
             // Ensure Id is set if not provided - enables message tracking and correlation
