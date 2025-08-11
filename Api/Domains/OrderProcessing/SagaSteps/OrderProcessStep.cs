@@ -1,37 +1,17 @@
-using Messages;
+using Microsoft.Extensions.Logging;
 using Api.SagaFramework;
 using Api.Domains.OrderProcessing.CommandFactories;
 
 namespace Api.Domains.OrderProcessing.SagaSteps
 {
     /// <summary>
-    /// Order Processing Step - Uses Factory Interface Pattern for optimal performance.
-    /// 
-    /// PERFORMANCE IMPROVEMENTS:
-    /// - Direct command creation
-    /// - No reflection overhead
-    /// - Compile-time safety
-    /// - Clear debugging experience
-    /// 
-    /// BUSINESS LOGIC:
-    /// - Handles order processing after successful creation
-    /// - Validates order details and inventory
-    /// - Prepares order for shipping
-    /// - Part of sequential order workflow
+    /// Order Processing Step - Handles order processing workflow step.
     /// </summary>
     public class OrderProcessStep : GenericStepBase<CallOrderProcessApi, object, OrderProcessingSagaState>
     {
         /// <summary>
         /// Constructor using dependency injection with explicit factory.
-        /// 
-        /// FACTORY INJECTION BENEFITS:
-        /// - Type-safe command factory injection
-        /// - Clear dependencies visible in constructor
-        /// - Easy mocking for unit tests
-        /// - No reflection or magic framework behavior
         /// </summary>
-        /// <param name="logger">Logger for observability</param>
-        /// <param name="commandFactory">Fast, explicit command factory</param>
         public OrderProcessStep(
             ILogger<OrderProcessStep> logger,
             OrderProcessCommandFactory commandFactory) 
@@ -40,17 +20,8 @@ namespace Api.Domains.OrderProcessing.SagaSteps
         }
 
         /// <summary>
-        /// Update saga state when order processing step fails.
-        /// 
-        /// ORDER PROCESS FAILURE HANDLING:
-        /// - Records retry count for exponential backoff
-        /// - Stores error message for debugging
-        /// - Updates last error timestamp
-        /// - Maintains audit trail
+        /// Update saga state when step fails.
         /// </summary>
-        /// <param name="sagaState">Current saga state</param>
-        /// <param name="error">Error details</param>
-        /// <param name="retryCount">Current retry attempt</param>
         protected override void UpdateSagaStateOnFailure(OrderProcessingSagaState sagaState, string error, int retryCount)
         {
             sagaState.OrderProcessRetryCount = retryCount;
@@ -59,16 +30,8 @@ namespace Api.Domains.OrderProcessing.SagaSteps
         }
 
         /// <summary>
-        /// Update saga state when order processing step succeeds.
-        /// 
-        /// ORDER PROCESS SUCCESS HANDLING:
-        /// - Marks API as called
-        /// - Stores successful response
-        /// - Updates completion timestamp
-        /// - Prepares for final step (order shipping)
+        /// Update saga state when step succeeds.
         /// </summary>
-        /// <param name="sagaState">Current saga state</param>
-        /// <param name="response">Success response from API</param>
         protected override void UpdateSagaStateOnSuccess(OrderProcessingSagaState sagaState, string response)
         {
             sagaState.OrderProcessedApiCalled = true;
@@ -76,4 +39,4 @@ namespace Api.Domains.OrderProcessing.SagaSteps
             sagaState.LastUpdated = DateTime.UtcNow;
         }
     }
-} 
+}

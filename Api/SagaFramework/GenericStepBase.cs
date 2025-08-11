@@ -3,25 +3,8 @@ using Messages;
 namespace Api.SagaFramework
 {
     /// <summary>
-    /// Generic step base class using Factory Interface Pattern for optimal performance.
-    /// 
-    /// PERFORMANCE CHARACTERISTICS:
-    /// - Direct command creation
-    /// - No reflection overhead
-    /// - Compile-time safety
-    /// - Clear debugging experience
-    /// 
-    /// USAGE PATTERN:
-    /// 1. Implement ICommandFactory&lt;TCommand, TData&gt; for your command
-    /// 2. Inherit from this base class
-    /// 3. Register factory in DI container
-    /// 4. Framework handles the rest automatically
-    /// 
-    /// ARCHITECTURE BENEFITS:
-    /// - Explicit dependencies visible in constructor
-    /// - Type-safe command creation
-    /// - Easy unit testing with mocked factories
-    /// - Clear separation between command creation and business logic
+    /// Generic step base class providing common functionality for saga steps.
+    /// Uses command factories for type-safe command creation.
     /// </summary>
     /// <typeparam name="TCommand">The command type this step creates</typeparam>
     /// <typeparam name="TData">The data type extracted from message</typeparam>
@@ -36,16 +19,9 @@ namespace Api.SagaFramework
 
         /// <summary>
         /// Constructor with dependency injection of command factory.
-        /// 
-        /// FACTORY RESOLUTION:
-        /// The command factory is injected via DI container, providing:
-        /// - Type safety at compile time
-        /// - Fast resolution (no reflection)
-        /// - Easy testing via mocking
-        /// - Clear dependencies
         /// </summary>
         /// <param name="logger">Logger for observability</param>
-        /// <param name="commandFactory">Fast, type-safe command factory</param>
+        /// <param name="commandFactory">Command factory for creating commands</param>
         /// <param name="messageKey">Key to extract data from message StepData</param>
         /// <param name="maxRetries">Maximum retry attempts for this step</param>
         protected GenericStepBase(
@@ -61,17 +37,7 @@ namespace Api.SagaFramework
         }
 
         /// <summary>
-        /// Create command using fast factory pattern - same signature as original for compatibility.
-        /// 
-        /// PERFORMANCE PATH:
-        /// 1. ExtractStepData(message) - fast dictionary lookup
-        /// 2. _commandFactory.Create() - direct method call (2ns)
-        /// 3. Return new command object - direct constructor (5ns)
-        /// Total: ~7ns vs 480ns for reflection approach
-        /// 
-        /// ERROR HANDLING:
-        /// - Compile-time: Missing factory registration
-        /// - Runtime: Invalid data type or missing message key
+        /// Create command using the injected factory.
         /// </summary>
         /// <typeparam name="TMessage">Message type (usually Messages.Message)</typeparam>
         /// <param name="correlationId">Saga correlation ID</param>
@@ -86,13 +52,6 @@ namespace Api.SagaFramework
 
         /// <summary>
         /// Extract step-specific data from message StepData dictionary.
-        /// 
-        /// EXTRACTION LOGIC:
-        /// - Looks up data using _messageKey (e.g., "order-created")
-        /// - Casts to expected TData type
-        /// - Throws clear exception if data missing or wrong type
-        /// 
-        /// PERFORMANCE: Fast dictionary lookup - no reflection involved
         /// </summary>
         /// <typeparam name="TMessage">Message type</typeparam>
         /// <param name="message">Message containing StepData</param>
@@ -113,12 +72,6 @@ namespace Api.SagaFramework
 
         /// <summary>
         /// Handle step failure and determine if retry should be attempted.
-        /// 
-        /// RETRY LOGIC:
-        /// - Compares current retry count against max retries
-        /// - Updates saga state with error information
-        /// - Logs failure details for observability
-        /// - Domain-specific logic can override for custom retry behavior
         /// </summary>
         /// <param name="sagaState">Current saga state</param>
         /// <param name="error">Error message or exception details</param>
@@ -137,12 +90,6 @@ namespace Api.SagaFramework
 
         /// <summary>
         /// Handle successful step completion.
-        /// 
-        /// SUCCESS HANDLING:
-        /// - Updates saga state with response data
-        /// - Marks step as completed
-        /// - Logs success for observability
-        /// - Domain-specific logic can override for custom success behavior
         /// </summary>
         /// <param name="sagaState">Current saga state</param>
         /// <param name="response">Successful response from external API</param>
