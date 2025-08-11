@@ -2,22 +2,22 @@
 
 ## 📖 Overview
 
-This guide demonstrates how to add a new domain saga to our generic MassTransit framework. We'll create a **Payment Processing Saga** as a concrete example, showing how the framework's generic design enables rapid domain expansion.
+This guide demonstrates how to add a new domain saga to our MassTransit framework using the **Factory Interface Pattern**. We'll create a **Payment Processing Saga** as a concrete example, showing how the framework's Factory Interface design enables rapid, type-safe domain expansion.
 
 ## 🎯 What You'll Learn
 
-- How to leverage the existing generic framework for new domains
+- How to leverage the Factory Interface Pattern for new domains
 - Step-by-step saga implementation process
 - Domain-Driven Design principles in practice
-- Code reuse and consistency patterns
+- Type-safe command creation and dependency injection
 - Testing and validation approaches
 
 ## 🏗️ Framework Benefits
 
-Our generic framework reduces new saga implementation from **200+ lines** to **~50 lines** per domain:
+Our Factory Interface Pattern framework provides type-safe, fast saga implementation:
 
-- ✅ **Generic Step Framework**: Handles retry logic, error handling, state management
-- ✅ **Convention-based Property Discovery**: Automatic mapping using reflection
+- ✅ **Factory Interface Pattern**: Type-safe command creation at compile time
+- ✅ **Explicit Dependencies**: Clear, visible dependencies in constructors
 - ✅ **Template Method Pattern**: Consistent behavior across all domains
 - ✅ **Domain Isolation**: Clean separation between business domains
 - ✅ **Outbox Pattern**: Guaranteed event delivery with exactly-once semantics
@@ -130,12 +130,6 @@ namespace Api.Domains.PaymentProcessing
 {
     /// <summary>
     /// Payment Processing Saga State - tracks payment workflow progress and state.
-    /// 
-    /// STATE PROPERTIES NAMING CONVENTION:
-    /// The generic framework uses reflection to discover properties based on step names:
-    /// - Step "PaymentAuthorize" → looks for "PaymentAuthorizeRetryCount", "PaymentAuthorizedApiCalled"
-    /// - Step "PaymentCapture" → looks for "PaymentCaptureRetryCount", "PaymentCapturedApiCalled"
-    /// - Past-tense variations are automatically supported
     /// </summary>
     public class PaymentProcessingSagaState : SagaStateMachineInstance
     {
@@ -197,7 +191,7 @@ namespace Api.Domains.PaymentProcessing
     public record CallPaymentAuthorizeApi
     {
         public Guid CorrelationId { get; init; }
-        public object? PaymentData { get; init; }  // Generic framework will populate this
+        public object? PaymentData { get; init; }
         public int RetryCount { get; init; }
     }
 
@@ -258,41 +252,155 @@ namespace Api.Domains.PaymentProcessing
 }
 ```
 
-### Step 4: Create Saga Steps (The Magic! ✨)
+### Step 4: Create Command Factories
 
-Create individual step implementations using our generic framework. Each step is only ~20 lines!
+Create type-safe command factories using the Factory Interface Pattern.
+
+**File:** `Api/Domains/PaymentProcessing/CommandFactories/PaymentAuthorizeCommandFactory.cs`
+
+```csharp
+using Api.SagaFramework;
+
+namespace Api.Domains.PaymentProcessing.CommandFactories
+{
+    /// <summary>
+    /// Command factory for Payment Authorization operations.
+    /// Creates CallPaymentAuthorizeApi commands with proper initialization.
+    /// </summary>
+    public class PaymentAuthorizeCommandFactory : ICommandFactory<CallPaymentAuthorizeApi, object>
+    {
+        /// <summary>
+        /// Create CallPaymentAuthorizeApi command with the specified parameters.
+        /// </summary>
+        /// <param name="correlationId">Saga correlation ID for tracking</param>
+        /// <param name="data">Payment data from message StepData["payment-authorized"]</param>
+        /// <param name="retryCount">Current retry attempt number</param>
+        /// <returns>Fully initialized CallPaymentAuthorizeApi command</returns>
+        public CallPaymentAuthorizeApi Create(Guid correlationId, object data, int retryCount = 0)
+        {
+            return new CallPaymentAuthorizeApi
+            {
+                CorrelationId = correlationId,
+                PaymentData = data,
+                RetryCount = retryCount
+            };
+        }
+    }
+}
+```
+
+**File:** `Api/Domains/PaymentProcessing/CommandFactories/PaymentCaptureCommandFactory.cs`
+
+```csharp
+using Api.SagaFramework;
+
+namespace Api.Domains.PaymentProcessing.CommandFactories
+{
+    /// <summary>
+    /// Command factory for Payment Capture operations.
+    /// Creates CallPaymentCaptureApi commands with proper initialization.
+    /// </summary>
+    public class PaymentCaptureCommandFactory : ICommandFactory<CallPaymentCaptureApi, object>
+    {
+        /// <summary>
+        /// Create CallPaymentCaptureApi command with the specified parameters.
+        /// </summary>
+        /// <param name="correlationId">Saga correlation ID for tracking</param>
+        /// <param name="data">Payment data from message StepData["payment-captured"]</param>
+        /// <param name="retryCount">Current retry attempt number</param>
+        /// <returns>Fully initialized CallPaymentCaptureApi command</returns>
+        public CallPaymentCaptureApi Create(Guid correlationId, object data, int retryCount = 0)
+        {
+            return new CallPaymentCaptureApi
+            {
+                CorrelationId = correlationId,
+                PaymentData = data,
+                RetryCount = retryCount
+            };
+        }
+    }
+}
+```
+
+**File:** `Api/Domains/PaymentProcessing/CommandFactories/ReceiptSendCommandFactory.cs`
+
+```csharp
+using Api.SagaFramework;
+
+namespace Api.Domains.PaymentProcessing.CommandFactories
+{
+    /// <summary>
+    /// Command factory for Receipt Send operations.
+    /// Creates CallReceiptSendApi commands with proper initialization.
+    /// </summary>
+    public class ReceiptSendCommandFactory : ICommandFactory<CallReceiptSendApi, object>
+    {
+        /// <summary>
+        /// Create CallReceiptSendApi command with the specified parameters.
+        /// </summary>
+        /// <param name="correlationId">Saga correlation ID for tracking</param>
+        /// <param name="data">Receipt data from message StepData["receipt-sent"]</param>
+        /// <param name="retryCount">Current retry attempt number</param>
+        /// <returns>Fully initialized CallReceiptSendApi command</returns>
+        public CallReceiptSendApi Create(Guid correlationId, object data, int retryCount = 0)
+        {
+            return new CallReceiptSendApi
+            {
+                CorrelationId = correlationId,
+                ReceiptData = data,
+                RetryCount = retryCount
+            };
+        }
+    }
+}
+```
+
+### Step 5: Create Saga Steps
+
+Create individual step implementations using the Factory Interface Pattern framework.
 
 **File:** `Api/Domains/PaymentProcessing/SagaSteps/PaymentAuthorizeStep.cs`
 
 ```csharp
-using Messages;
+using Microsoft.Extensions.Logging;
 using Api.SagaFramework;
+using Api.Domains.PaymentProcessing.CommandFactories;
 
 namespace Api.Domains.PaymentProcessing.SagaSteps
 {
     /// <summary>
-    /// Payment Authorization Step - handles payment authorization with the payment gateway.
-    /// 
-    /// FRAMEWORK MAGIC:
-    /// This class is only ~20 lines but gets full retry logic, error handling,
-    /// state management, and property discovery automatically from the framework!
+    /// Payment Authorization Step - Handles payment authorization workflow step.
     /// </summary>
-    [SagaStep(
-        StepName = "PaymentAuthorize",                                   // Maps to PaymentAuthorizeRetryCount property
-        MessageKey = PaymentDomainConstants.StepKeys.PaymentAuthorized,  // Maps to "payment-authorized" in message
-        MaxRetries = 5,                                                  // Payment auth gets 5 retries (critical)
-        DataPropertyName = "PaymentData"                                 // Command property to populate
-    )]
-    public class PaymentAuthorizeStep : GenericStepBase<CallPaymentAuthorizeApi, PaymentProcessingSagaState>
+    public class PaymentAuthorizeStep : GenericStepBase<CallPaymentAuthorizeApi, object, PaymentProcessingSagaState>
     {
-        public PaymentAuthorizeStep(ILogger<PaymentAuthorizeStep> logger) 
-            : base(logger, GenericStepFactory.Create<PaymentAuthorizeStep, PaymentProcessingSagaState>(), "PaymentData")
+        /// <summary>
+        /// Constructor using dependency injection with explicit factory.
+        /// </summary>
+        public PaymentAuthorizeStep(
+            ILogger<PaymentAuthorizeStep> logger,
+            PaymentAuthorizeCommandFactory commandFactory) 
+            : base(logger, commandFactory, PaymentDomainConstants.StepKeys.PaymentAuthorized, maxRetries: 5)
         {
         }
 
-        public override CallPaymentAuthorizeApi CreateCommand<TMessage>(Guid correlationId, TMessage message, int retryCount = 0)
+        /// <summary>
+        /// Update saga state when step fails.
+        /// </summary>
+        protected override void UpdateSagaStateOnFailure(PaymentProcessingSagaState sagaState, string error, int retryCount)
         {
-            return GenericCommandFactory.Create<CallPaymentAuthorizeApi>(correlationId, ExtractStepData(message), _dataPropertyName, retryCount);
+            sagaState.PaymentAuthorizeRetryCount = retryCount;
+            sagaState.LastError = error;
+            sagaState.LastUpdated = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// Update saga state when step succeeds.
+        /// </summary>
+        protected override void UpdateSagaStateOnSuccess(PaymentProcessingSagaState sagaState, string response)
+        {
+            sagaState.PaymentAuthorizedApiCalled = true;
+            sagaState.PaymentAuthorizeResponse = response;
+            sagaState.LastUpdated = DateTime.UtcNow;
         }
     }
 }
@@ -301,27 +409,45 @@ namespace Api.Domains.PaymentProcessing.SagaSteps
 **File:** `Api/Domains/PaymentProcessing/SagaSteps/PaymentCaptureStep.cs`
 
 ```csharp
-using Messages;
+using Microsoft.Extensions.Logging;
 using Api.SagaFramework;
+using Api.Domains.PaymentProcessing.CommandFactories;
 
 namespace Api.Domains.PaymentProcessing.SagaSteps
 {
-    [SagaStep(
-        StepName = "PaymentCapture",
-        MessageKey = PaymentDomainConstants.StepKeys.PaymentCaptured,
-        MaxRetries = 3,
-        DataPropertyName = "PaymentData"
-    )]
-    public class PaymentCaptureStep : GenericStepBase<CallPaymentCaptureApi, PaymentProcessingSagaState>
+    /// <summary>
+    /// Payment Capture Step - Handles payment capture workflow step.
+    /// </summary>
+    public class PaymentCaptureStep : GenericStepBase<CallPaymentCaptureApi, object, PaymentProcessingSagaState>
     {
-        public PaymentCaptureStep(ILogger<PaymentCaptureStep> logger) 
-            : base(logger, GenericStepFactory.Create<PaymentCaptureStep, PaymentProcessingSagaState>(), "PaymentData")
+        /// <summary>
+        /// Constructor using dependency injection with explicit factory.
+        /// </summary>
+        public PaymentCaptureStep(
+            ILogger<PaymentCaptureStep> logger,
+            PaymentCaptureCommandFactory commandFactory) 
+            : base(logger, commandFactory, PaymentDomainConstants.StepKeys.PaymentCaptured, maxRetries: 3)
         {
         }
 
-        public override CallPaymentCaptureApi CreateCommand<TMessage>(Guid correlationId, TMessage message, int retryCount = 0)
+        /// <summary>
+        /// Update saga state when step fails.
+        /// </summary>
+        protected override void UpdateSagaStateOnFailure(PaymentProcessingSagaState sagaState, string error, int retryCount)
         {
-            return GenericCommandFactory.Create<CallPaymentCaptureApi>(correlationId, ExtractStepData(message), _dataPropertyName, retryCount);
+            sagaState.PaymentCaptureRetryCount = retryCount;
+            sagaState.LastError = error;
+            sagaState.LastUpdated = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// Update saga state when step succeeds.
+        /// </summary>
+        protected override void UpdateSagaStateOnSuccess(PaymentProcessingSagaState sagaState, string response)
+        {
+            sagaState.PaymentCapturedApiCalled = true;
+            sagaState.PaymentCaptureResponse = response;
+            sagaState.LastUpdated = DateTime.UtcNow;
         }
     }
 }
@@ -330,33 +456,51 @@ namespace Api.Domains.PaymentProcessing.SagaSteps
 **File:** `Api/Domains/PaymentProcessing/SagaSteps/ReceiptSendStep.cs`
 
 ```csharp
-using Messages;
+using Microsoft.Extensions.Logging;
 using Api.SagaFramework;
+using Api.Domains.PaymentProcessing.CommandFactories;
 
 namespace Api.Domains.PaymentProcessing.SagaSteps
 {
-    [SagaStep(
-        StepName = "ReceiptSend",
-        MessageKey = PaymentDomainConstants.StepKeys.ReceiptSent,
-        MaxRetries = 2,
-        DataPropertyName = "ReceiptData"
-    )]
-    public class ReceiptSendStep : GenericStepBase<CallReceiptSendApi, PaymentProcessingSagaState>
+    /// <summary>
+    /// Receipt Send Step - Handles receipt sending workflow step.
+    /// </summary>
+    public class ReceiptSendStep : GenericStepBase<CallReceiptSendApi, object, PaymentProcessingSagaState>
     {
-        public ReceiptSendStep(ILogger<ReceiptSendStep> logger) 
-            : base(logger, GenericStepFactory.Create<ReceiptSendStep, PaymentProcessingSagaState>(), "ReceiptData")
+        /// <summary>
+        /// Constructor using dependency injection with explicit factory.
+        /// </summary>
+        public ReceiptSendStep(
+            ILogger<ReceiptSendStep> logger,
+            ReceiptSendCommandFactory commandFactory) 
+            : base(logger, commandFactory, PaymentDomainConstants.StepKeys.ReceiptSent, maxRetries: 2)
         {
         }
 
-        public override CallReceiptSendApi CreateCommand<TMessage>(Guid correlationId, TMessage message, int retryCount = 0)
+        /// <summary>
+        /// Update saga state when step fails.
+        /// </summary>
+        protected override void UpdateSagaStateOnFailure(PaymentProcessingSagaState sagaState, string error, int retryCount)
         {
-            return GenericCommandFactory.Create<CallReceiptSendApi>(correlationId, ExtractStepData(message), _dataPropertyName, retryCount);
+            sagaState.ReceiptSendRetryCount = retryCount;
+            sagaState.LastError = error;
+            sagaState.LastUpdated = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// Update saga state when step succeeds.
+        /// </summary>
+        protected override void UpdateSagaStateOnSuccess(PaymentProcessingSagaState sagaState, string response)
+        {
+            sagaState.ReceiptSentApiCalled = true;
+            sagaState.ReceiptSendResponse = response;
+            sagaState.LastUpdated = DateTime.UtcNow;
         }
     }
 }
 ```
 
-### Step 5: Create API Consumers
+### Step 6: Create API Consumers
 
 Create consumers that handle the HTTP API calls to external payment services.
 
@@ -441,20 +585,21 @@ namespace Api.Domains.PaymentProcessing
 }
 ```
 
-### Step 6: Create the Saga State Machine
+### Step 7: Create the Saga State Machine
 
-Create the main orchestrator that coordinates the payment workflow.
+Create the main orchestrator that coordinates the payment workflow using Factory Interface Pattern.
 
 **File:** `Api/Domains/PaymentProcessing/PaymentProcessingSaga.cs`
 
 ```csharp
 using MassTransit;
-using Api.Domains.PaymentProcessing.SagaSteps;
+using Api.Domains.PaymentProcessing.CommandFactories;
 
 namespace Api.Domains.PaymentProcessing
 {
     /// <summary>
     /// Payment Processing Saga - orchestrates the complete payment workflow.
+    /// Uses Factory Interface Pattern for type-safe command creation.
     /// 
     /// PAYMENT WORKFLOW:
     /// 1. Receive PaymentProcessingSagaStarted event
@@ -466,20 +611,20 @@ namespace Api.Domains.PaymentProcessing
     public class PaymentProcessingSaga : MassTransitStateMachine<PaymentProcessingSagaState>
     {
         private readonly ILogger<PaymentProcessingSaga> _logger;
-        private readonly PaymentAuthorizeStep _authorizeStep;
-        private readonly PaymentCaptureStep _captureStep;
-        private readonly ReceiptSendStep _receiptStep;
+        private readonly PaymentAuthorizeCommandFactory _authorizeFactory;
+        private readonly PaymentCaptureCommandFactory _captureFactory;
+        private readonly ReceiptSendCommandFactory _receiptFactory;
 
         public PaymentProcessingSaga(
             ILogger<PaymentProcessingSaga> logger,
-            PaymentAuthorizeStep authorizeStep,
-            PaymentCaptureStep captureStep,
-            ReceiptSendStep receiptStep)
+            PaymentAuthorizeCommandFactory authorizeFactory,
+            PaymentCaptureCommandFactory captureFactory,
+            ReceiptSendCommandFactory receiptFactory)
         {
             _logger = logger;
-            _authorizeStep = authorizeStep;
-            _captureStep = captureStep;
-            _receiptStep = receiptStep;
+            _authorizeFactory = authorizeFactory;
+            _captureFactory = captureFactory;
+            _receiptFactory = receiptFactory;
 
             ConfigureEvents();
             ConfigureStates();
@@ -526,33 +671,53 @@ namespace Api.Domains.PaymentProcessing
                         
                         _logger.LogInformation($"💳 Payment Saga started for correlation ID: {context.Saga.CorrelationId}");
                     })
-                    .PublishAsync(context => context.Init<CallPaymentAuthorizeApi>(_authorizeStep.CreateCommand(context.Saga.CorrelationId, context.Message.OriginalMessage)))
+                    .PublishAsync(context => context.Init<CallPaymentAuthorizeApi>(_authorizeFactory.Create(context.Saga.CorrelationId, ExtractPaymentData(context.Message.OriginalMessage))))
                     .TransitionTo(WaitingForAuthorization)
             );
 
             // 🔐 Authorization: Success → Capture, Failure → Retry or End
             During(WaitingForAuthorization,
                 When(AuthorizeSucceeded)
-                    .Then(context => _authorizeStep.HandleSuccess(context.Saga, context.Message.Response))
-                    .PublishAsync(context => context.Init<CallPaymentCaptureApi>(_captureStep.CreateCommand(context.Saga.CorrelationId, context.Saga.OriginalMessage!)))
+                    .Then(context => {
+                        context.Saga.PaymentAuthorizedApiCalled = true;
+                        context.Saga.PaymentAuthorizeResponse = context.Message.Response;
+                        context.Saga.LastUpdated = DateTime.UtcNow;
+                    })
+                    .PublishAsync(context => context.Init<CallPaymentCaptureApi>(_captureFactory.Create(context.Saga.CorrelationId, ExtractCaptureData(context.Saga.OriginalMessage!))))
                     .TransitionTo(WaitingForCapture),
 
                 When(AuthorizeFailed)
-                    .IfElse(context => _authorizeStep.HandleFailureAndShouldRetry(context.Saga, context.Message.Error, context.Message.RetryCount),
-                        retry => retry.PublishAsync(context => context.Init<CallPaymentAuthorizeApi>(_authorizeStep.CreateCommand(context.Saga.CorrelationId, context.Saga.OriginalMessage!, context.Message.RetryCount))),
+                    .IfElse(context => ShouldRetryStep(context.Saga.PaymentAuthorizeRetryCount, maxRetries: 5),
+                        retry => retry
+                            .Then(context => {
+                                context.Saga.PaymentAuthorizeRetryCount = context.Message.RetryCount;
+                                context.Saga.LastError = context.Message.Error;
+                                context.Saga.LastUpdated = DateTime.UtcNow;
+                            })
+                            .PublishAsync(context => context.Init<CallPaymentAuthorizeApi>(_authorizeFactory.Create(context.Saga.CorrelationId, ExtractPaymentData(context.Saga.OriginalMessage!), context.Message.RetryCount + 1))),
                         fail => fail.Finalize())
             );
 
             // 💰 Capture: Success → Receipt, Failure → Retry or End
             During(WaitingForCapture,
                 When(CaptureSucceeded)
-                    .Then(context => _captureStep.HandleSuccess(context.Saga, context.Message.Response))
-                    .PublishAsync(context => context.Init<CallReceiptSendApi>(_receiptStep.CreateCommand(context.Saga.CorrelationId, context.Saga.OriginalMessage!)))
+                    .Then(context => {
+                        context.Saga.PaymentCapturedApiCalled = true;
+                        context.Saga.PaymentCaptureResponse = context.Message.Response;
+                        context.Saga.LastUpdated = DateTime.UtcNow;
+                    })
+                    .PublishAsync(context => context.Init<CallReceiptSendApi>(_receiptFactory.Create(context.Saga.CorrelationId, ExtractReceiptData(context.Saga.OriginalMessage!))))
                     .TransitionTo(WaitingForReceipt),
 
                 When(CaptureFailed)
-                    .IfElse(context => _captureStep.HandleFailureAndShouldRetry(context.Saga, context.Message.Error, context.Message.RetryCount),
-                        retry => retry.PublishAsync(context => context.Init<CallPaymentCaptureApi>(_captureStep.CreateCommand(context.Saga.CorrelationId, context.Saga.OriginalMessage!, context.Message.RetryCount))),
+                    .IfElse(context => ShouldRetryStep(context.Saga.PaymentCaptureRetryCount, maxRetries: 3),
+                        retry => retry
+                            .Then(context => {
+                                context.Saga.PaymentCaptureRetryCount = context.Message.RetryCount;
+                                context.Saga.LastError = context.Message.Error;
+                                context.Saga.LastUpdated = DateTime.UtcNow;
+                            })
+                            .PublishAsync(context => context.Init<CallPaymentCaptureApi>(_captureFactory.Create(context.Saga.CorrelationId, ExtractCaptureData(context.Saga.OriginalMessage!), context.Message.RetryCount + 1))),
                         fail => fail.Finalize())
             );
 
@@ -560,26 +725,58 @@ namespace Api.Domains.PaymentProcessing
             During(WaitingForReceipt,
                 When(ReceiptSucceeded)
                     .Then(context => {
-                        _receiptStep.HandleSuccess(context.Saga, context.Message.Response);
+                        context.Saga.ReceiptSentApiCalled = true;
+                        context.Saga.ReceiptSendResponse = context.Message.Response;
                         context.Saga.CompletedAt = DateTime.UtcNow;
+                        context.Saga.LastUpdated = DateTime.UtcNow;
                         _logger.LogInformation($"💳 PAYMENT PROCESSING COMPLETED for correlation ID: {context.Saga.CorrelationId}");
                         _logger.LogInformation($"All Payment APIs called successfully: Authorize ✅ Capture ✅ Receipt ✅");
                     })
                     .Finalize(),
 
                 When(ReceiptFailed)
-                    .IfElse(context => _receiptStep.HandleFailureAndShouldRetry(context.Saga, context.Message.Error, context.Message.RetryCount),
-                        retry => retry.PublishAsync(context => context.Init<CallReceiptSendApi>(_receiptStep.CreateCommand(context.Saga.CorrelationId, context.Saga.OriginalMessage!, context.Message.RetryCount))),
+                    .IfElse(context => ShouldRetryStep(context.Saga.ReceiptSendRetryCount, maxRetries: 2),
+                        retry => retry
+                            .Then(context => {
+                                context.Saga.ReceiptSendRetryCount = context.Message.RetryCount;
+                                context.Saga.LastError = context.Message.Error;
+                                context.Saga.LastUpdated = DateTime.UtcNow;
+                            })
+                            .PublishAsync(context => context.Init<CallReceiptSendApi>(_receiptFactory.Create(context.Saga.CorrelationId, ExtractReceiptData(context.Saga.OriginalMessage!), context.Message.RetryCount + 1))),
                         fail => fail.Finalize())
             );
 
             SetCompletedWhenFinalized();
         }
+
+        // Helper methods for data extraction and retry logic
+        private static object ExtractPaymentData(Messages.Message message)
+        {
+            return message.StepData.TryGetValue(PaymentDomainConstants.StepKeys.PaymentAuthorized, out var paymentData)
+                ? paymentData
+                : new { };
+        }
+
+        private static object ExtractCaptureData(Messages.Message message)
+        {
+            return message.StepData.TryGetValue(PaymentDomainConstants.StepKeys.PaymentCaptured, out var captureData)
+                ? captureData
+                : new { };
+        }
+
+        private static object ExtractReceiptData(Messages.Message message)
+        {
+            return message.StepData.TryGetValue(PaymentDomainConstants.StepKeys.ReceiptSent, out var receiptData)
+                ? receiptData
+                : new { };
+        }
+
+        private static bool ShouldRetryStep(int currentRetryCount, int maxRetries) => currentRetryCount < maxRetries;
     }
 }
 ```
 
-### Step 7: Update Database Context
+### Step 8: Update Database Context
 
 Add the new saga state to the database context for persistence.
 
@@ -609,17 +806,17 @@ modelBuilder.Entity<Api.Domains.PaymentProcessing.PaymentProcessingSagaState>(en
 });
 ```
 
-### Step 8: Register Services
+### Step 9: Register Services
 
-Update the service registration to include the new payment saga and steps.
+Update the service registration to include the new payment saga and command factories.
 
 **File:** `Api/Program.cs` (Add to existing file)
 
 ```csharp
-// Add Payment saga step registrations
-builder.Services.AddSingleton<Api.Domains.PaymentProcessing.SagaSteps.PaymentAuthorizeStep>();
-builder.Services.AddSingleton<Api.Domains.PaymentProcessing.SagaSteps.PaymentCaptureStep>();
-builder.Services.AddSingleton<Api.Domains.PaymentProcessing.SagaSteps.ReceiptSendStep>();
+// Register command factories for Factory Interface Pattern
+builder.Services.AddScoped<Api.Domains.PaymentProcessing.CommandFactories.PaymentAuthorizeCommandFactory>();
+builder.Services.AddScoped<Api.Domains.PaymentProcessing.CommandFactories.PaymentCaptureCommandFactory>();
+builder.Services.AddScoped<Api.Domains.PaymentProcessing.CommandFactories.ReceiptSendCommandFactory>();
 
 // Add Payment saga registration to MassTransit configuration
 x.AddSagaStateMachine<Api.Domains.PaymentProcessing.PaymentProcessingSaga, Api.Domains.PaymentProcessing.PaymentProcessingSagaState>()
@@ -635,7 +832,7 @@ x.AddConsumer<Api.Domains.PaymentProcessing.CallPaymentCaptureApiConsumer>();
 x.AddConsumer<Api.Domains.PaymentProcessing.CallReceiptSendApiConsumer>();
 ```
 
-### Step 9: Create Database Migration
+### Step 10: Create Database Migration
 
 Generate and apply a new migration for the Payment saga state table.
 
@@ -648,7 +845,7 @@ dotnet ef migrations add AddPaymentSagaState
 dotnet ef database update
 ```
 
-### Step 10: Update Message Consumer (Optional)
+### Step 11: Update Message Consumer (Optional)
 
 If you want the same MessageConsumer to trigger Payment sagas, add logic to detect payment messages.
 
@@ -664,8 +861,8 @@ public async Task Consume(ConsumeContext<Message> context)
     // Check if this is a payment message
     if (message.StepData.ContainsKey(Api.Domains.PaymentProcessing.PaymentDomainConstants.StepKeys.PaymentAuthorized))
     {
-        // Start Payment Processing Saga
-        var paymentSagaCorrelationId = Guid.NewGuid();
+        // Start Payment Processing Saga using message ID for idempotency
+        var paymentSagaCorrelationId = message.Id;
         await context.Publish(new Api.Domains.PaymentProcessing.PaymentProcessingSagaStarted
         {
             CorrelationId = paymentSagaCorrelationId,
@@ -709,7 +906,7 @@ public async Task Consume(ConsumeContext<Message> context)
 ### Test via Producer API
 
 ```bash
-curl -X POST http://localhost:5028/producer \
+curl -X POST http://localhost:6001/api/producer/send \
   -H "Content-Type: application/json" \
   -d '{
     "Id": "payment-test-123",
@@ -736,28 +933,28 @@ curl -X POST http://localhost:5028/producer \
 ## 🏆 Summary: What You Achieved
 
 ### Code Metrics
-- **Total new code**: ~150 lines across all files
-- **Framework savings**: ~800+ lines of boilerplate eliminated
-- **Implementation time**: ~30 minutes vs 4-6 hours without framework
+- **Total new code**: ~200 lines across all files
+- **Framework benefits**: Type-safe command creation with Factory Interface Pattern
+- **Implementation time**: ~45 minutes vs 6-8 hours without framework
 
 ### Architecture Benefits
 - ✅ **Domain Isolation**: Payment logic completely separate from Order logic
-- ✅ **Consistent Patterns**: Same retry, error handling, and state management
-- ✅ **Type Safety**: Compile-time validation with runtime flexibility
-- ✅ **Testable**: Each component can be tested in isolation
-- ✅ **Scalable**: Easy to add more domains (Shipping, Inventory, etc.)
+- ✅ **Type Safety**: Compile-time validation for command creation
+- ✅ **Explicit Dependencies**: Clear visibility of dependencies in constructors
+- ✅ **Testable**: Each component can be tested in isolation with mocked factories
+- ✅ **Scalable**: Easy to add more domains with consistent patterns
 
-### Framework Power
-- ✅ **Convention over Configuration**: Automatic property discovery
-- ✅ **Template Method Pattern**: Consistent behavior across domains
-- ✅ **Reflection-based**: Smart naming pattern recognition
-- ✅ **Enterprise-grade**: Production-ready error handling and retry logic
+### Factory Interface Pattern Benefits
+- ✅ **Compile-Time Safety**: All command creation is type-checked
+- ✅ **Clear Dependencies**: Factory injection makes dependencies explicit
+- ✅ **Easy Testing**: Mock factories for unit testing
+- ✅ **No Magic**: Clear, readable command creation code
 
 ## 🚀 Next Steps
 
 1. **Add Mock Payment APIs**: Create MockPaymentApis service similar to MockExternalApis
 2. **Add More Domains**: Try Shipping, Inventory, or Notification processing
-3. **Enhance Testing**: Add unit tests for your new saga steps
+3. **Enhance Testing**: Add unit tests for your new saga steps and command factories
 4. **Monitor Performance**: Add custom metrics and logging
 5. **Production Deployment**: Configure for your specific infrastructure
 
@@ -768,11 +965,12 @@ curl -X POST http://localhost:5028/producer \
 When adding new domains, follow these guidelines:
 
 1. **Namespace Convention**: `Api.Domains.{DomainName}`
-2. **File Organization**: Domain folder with sub-folders for SagaSteps
-3. **Naming Patterns**: Use past-tense for completed actions
+2. **File Organization**: Domain folder with sub-folders for SagaSteps and CommandFactories
+3. **Factory Pattern**: Always create explicit command factories implementing `ICommandFactory<TCommand, TData>`
 4. **Documentation**: Add comprehensive comments explaining business logic
-5. **Testing**: Include unit tests for domain-specific logic
+5. **Testing**: Include unit tests for domain-specific logic and command factories
 
 ---
 
+**🎉 Congratulations!** You've successfully added a new Payment Processing saga using the Factory Interface Pattern framework. The type-safe approach ensures reliability and maintainability while providing excellent developer experience through explicit dependencies and compile-time validation.
 **🎉 Congratulations!** You've successfully added a new Payment Processing saga using our generic framework. The same pattern can be applied to any business domain, making our system infinitely extensible while maintaining consistency and reliability. 
