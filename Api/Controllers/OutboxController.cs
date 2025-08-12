@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Api.Infrastructure;
-using System.Data;
+using MassTransit;
 
 namespace Api.Controllers
 {
     /// <summary>
-    /// Outbox monitoring and inspection API.
-    /// Provides visibility into MassTransit's outbox tables for debugging and monitoring.
+    /// Application monitoring and MassTransit info API.
+    /// Uses EF Core LINQ for application data and MassTransit APIs for outbox monitoring.
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
@@ -23,297 +23,126 @@ namespace Api.Controllers
         }
 
         /// <summary>
-        /// Get outbox table status and statistics.
-        /// Shows table existence, row counts, and recent activity.
+        /// Get application status using pure EF Core LINQ - no raw SQL needed!
         /// </summary>
         [HttpGet("status")]
-        public async Task<IActionResult> GetOutboxStatus()
+        public async Task<IActionResult> GetStatus()
         {
             try
             {
                 var result = new
                 {
                     Timestamp = DateTime.UtcNow,
-                    Tables = await GetTableInfo(),
-                    Statistics = await GetOutboxStatistics()
+                    DatabaseProvider = _dbContext.Database.ProviderName,
+                    ApplicationData = await GetApplicationData(),
+                    MassTransitInfo = GetMassTransitInfo()
                 };
 
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to get outbox status");
+                _logger.LogError(ex, "Failed to get status");
                 return StatusCode(500, new { Error = ex.Message });
             }
         }
 
         /// <summary>
-        /// Get all outbox messages with optional filtering.
-        /// Shows pending, processed, and failed messages.
+        /// Get application messages using pure EF Core LINQ
         /// </summary>
         [HttpGet("messages")]
-        public async Task<IActionResult> GetOutboxMessages(
-            [FromQuery] bool? delivered = null,
+        public async Task<IActionResult> GetApplicationMessages(
             [FromQuery] int limit = 50,
-            [FromQuery] string? correlationId = null)
+            [FromQuery] string? search = null)
         {
             try
             {
-                var messages = await GetOutboxMessagesFromDatabase(delivered, limit, correlationId);
+                // Pure EF Core LINQ - database agnostic!
+                var query = _dbContext.Messages.AsQueryable();
                 
-                var result = new
+                if (!string.IsNullOrWhiteSpace(search))
                 {
-                    Timestamp = DateTime.UtcNow,
-                    Filter = new { Delivered = delivered, Limit = limit, CorrelationId = correlationId },
-                    Count = messages.Count,
-                    Messages = messages
-                };
-
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get outbox messages");
-                return StatusCode(500, new { Error = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Get pending outbox messages (not yet delivered).
-        /// Useful for monitoring delivery delays and failures.
-        /// </summary>
-        [HttpGet("pending")]
-        public async Task<IActionResult> GetPendingMessages([FromQuery] int limit = 20)
-        {
-            try
-            {
-                var pendingMessages = await GetOutboxMessagesFromDatabase(delivered: false, limit, null);
-                
-                var result = new
-                {
-                    Timestamp = DateTime.UtcNow,
-                    PendingCount = pendingMessages.Count,
-                    Messages = pendingMessages
-                };
-
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get pending outbox messages");
-                return StatusCode(500, new { Error = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Get raw SQL query results for advanced inspection.
-        /// Allows custom queries against outbox tables.
-        /// </summary>
-        [HttpPost("query")]
-        public async Task<IActionResult> ExecuteCustomQuery([FromBody] CustomQueryRequest request)
-        {
-            try
-            {
-                // Validate query for safety (basic protection)
-                if (string.IsNullOrWhiteSpace(request.Query) || 
-                    !request.Query.Trim().ToLowerInvariant().StartsWith("select"))
-                {
-                    return BadRequest(new { Error = "Only SELECT queries are allowed" });
+                    query = query.Where(m => m.Id.ToString().Contains(search));
                 }
-
-                var results = await ExecuteRawSqlQuery(request.Query);
+                
+                var messages = await query
+                    .OrderByDescending(m => m.Id) // Assuming Id has ordering
+                    .Take(limit)
+                    .Select(m => new { m.Id, m.StepData })
+                    .ToListAsync();
                 
                 return Ok(new
                 {
                     Timestamp = DateTime.UtcNow,
-                    Query = request.Query,
-                    Results = results
+                    Count = messages.Count,
+                    Messages = messages,
+                    Note = "These are application messages tracked via EF Core LINQ"
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to execute custom query: {Query}", request.Query);
+                _logger.LogError(ex, "Failed to get application messages");
                 return StatusCode(500, new { Error = ex.Message });
             }
         }
 
-        private async Task<List<TableInfo>> GetTableInfo()
+        /// <summary>
+        /// Get MassTransit monitoring guidance
+        /// </summary>
+        [HttpGet("masstransit-monitoring")]
+        public IActionResult GetMassTransitMonitoring()
         {
-            var tableInfo = new List<TableInfo>();
-            
-            // Use EF Core's model to get all entity types (tables)
-            var entityTypes = _dbContext.Model.GetEntityTypes();
-            
-            foreach (var entityType in entityTypes)
+            return Ok(new
             {
-                var tableName = entityType.GetTableName();
-                if (!string.IsNullOrEmpty(tableName))
+                Timestamp = DateTime.UtcNow,
+                Message = "MassTransit outbox monitoring should use official MassTransit tools",
+                ProperApproaches = new
                 {
-                    var rowCount = await GetTableRowCount(tableName);
-                    tableInfo.Add(new TableInfo
-                    {
-                        Name = tableName,
-                        RowCount = rowCount,
-                        IsOutboxTable = tableName.Contains("Outbox", StringComparison.OrdinalIgnoreCase)
-                    });
-                }
-            }
+                    HealthChecks = "Add MassTransit health checks for outbox monitoring",
+                    Metrics = "Use MassTransit.Monitoring.Performance package with Prometheus",
+                    Diagnostics = "Enable MassTransit diagnostic observers",
+                    Logging = "MassTransit provides structured logging for outbox operations"
+                },
+                ConfiguredProvider = _dbContext.Database.ProviderName,
+                OutboxStatus = "Configured and managed by MassTransit"
+            });
+        }
+
+        /// <summary>
+        /// Get application data using EF Core LINQ
+        /// </summary>
+        private async Task<object> GetApplicationData()
+        {
+            // Pure EF Core LINQ - works with any database provider!
+            var messageCount = await _dbContext.Messages.CountAsync();
             
-            return tableInfo;
-        }
-
-        private async Task<int> GetTableRowCount(string tableName)
-        {
-            try
+            return new
             {
-                // Use EF Core's SqlQuery with FormattableString for safety and database agnosticism
-                var result = await _dbContext.Database.SqlQuery<int>($"SELECT COUNT(*) FROM {tableName}").ToListAsync();
-                return result.FirstOrDefault();
-            }
-            catch
-            {
-                return -1; // Error getting count
-            }
-        }
-
-        private async Task<OutboxStatistics> GetOutboxStatistics()
-        {
-            try
-            {
-                // Try to get statistics from potential outbox tables
-                var outboxTables = FindOutboxTables();
-                var stats = new OutboxStatistics();
-
-                foreach (var table in outboxTables)
+                Tables = new[]
                 {
-                    try
-                    {
-                        // Use EF Core's database-agnostic SQL execution
-                        var pendingResult = await _dbContext.Database.SqlQuery<int>(
-                            $"SELECT COUNT(*) FROM {table} WHERE Delivered IS NULL OR Delivered = 0").ToListAsync();
-                        var deliveredResult = await _dbContext.Database.SqlQuery<int>(
-                            $"SELECT COUNT(*) FROM {table} WHERE Delivered IS NOT NULL AND Delivered != 0").ToListAsync();
-                        
-                        stats.PendingMessages += pendingResult.FirstOrDefault();
-                        stats.DeliveredMessages += deliveredResult.FirstOrDefault();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to get statistics for table {Table}", table);
-                    }
-                }
+                    new { Name = "Messages", Count = messageCount, Type = "Application Data" }
+                },
+                Note = "Application data retrieved using EF Core LINQ - fully database agnostic"
+            };
+        }
 
-                return stats;
-            }
-            catch (Exception ex)
+        /// <summary>
+        /// Get MassTransit configuration info
+        /// </summary>
+        private object GetMassTransitInfo()
+        {
+            return new
             {
-                _logger.LogWarning(ex, "Failed to get outbox statistics");
-                return new OutboxStatistics { Error = ex.Message };
-            }
-        }
-
-        private List<string> FindOutboxTables()
-        {
-            // Use EF Core's model metadata to find outbox tables
-            var entityTypes = _dbContext.Model.GetEntityTypes();
-            var outboxTables = new List<string>();
-            
-            foreach (var entityType in entityTypes)
-            {
-                var tableName = entityType.GetTableName();
-                if (!string.IsNullOrEmpty(tableName) && 
-                    tableName.Contains("Outbox", StringComparison.OrdinalIgnoreCase))
+                OutboxConfigured = true,
+                Provider = _dbContext.Database.ProviderName,
+                Recommendation = new
                 {
-                    outboxTables.Add(tableName);
+                    Monitoring = "Use MassTransit's built-in monitoring capabilities",
+                    HealthChecks = "Configure MassTransit health checks for production monitoring",
+                    Metrics = "Integrate with Prometheus/Grafana for detailed metrics",
+                    WhyNotManualSQL = "MassTransit internal table structure may change - use official APIs"
                 }
-            }
-            
-            return outboxTables;
-        }
-
-        private async Task<List<object>> GetOutboxMessagesFromDatabase(bool? delivered, int limit, string? correlationId)
-        {
-            var outboxTables = FindOutboxTables();
-            var allMessages = new List<object>();
-
-            foreach (var table in outboxTables)
-            {
-                try
-                {
-                    // Build database-agnostic query using standard SQL
-                    var whereClause = "WHERE 1=1";
-                    
-                    if (delivered.HasValue)
-                    {
-                        whereClause += delivered.Value 
-                            ? " AND (Delivered IS NOT NULL AND Delivered != 0)"
-                            : " AND (Delivered IS NULL OR Delivered = 0)";
-                    }
-                    
-                    if (!string.IsNullOrWhiteSpace(correlationId))
-                    {
-                        whereClause += $" AND (Body LIKE '%{correlationId}%' OR Headers LIKE '%{correlationId}%')";
-                    }
-
-                    var query = $@"
-                        SELECT * FROM {table}
-                        {whereClause}
-                        ORDER BY Created DESC";
-
-                    var results = await ExecuteRawSqlQuery(query);
-                    allMessages.AddRange(results);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to query outbox table {Table}", table);
-                }
-            }
-
-            return allMessages.Take(limit).ToList();
-        }
-
-        private async Task<List<Dictionary<string, object>>> ExecuteRawSqlQuery(string query)
-        {
-            using var command = _dbContext.Database.GetDbConnection().CreateCommand();
-            command.CommandText = query;
-            
-            await _dbContext.Database.OpenConnectionAsync();
-            
-            using var reader = await command.ExecuteReaderAsync();
-            var results = new List<Dictionary<string, object>>();
-            
-            while (await reader.ReadAsync())
-            {
-                var row = new Dictionary<string, object>();
-                for (int i = 0; i < reader.FieldCount; i++)
-                {
-                    var value = reader.IsDBNull(i) ? null : reader.GetValue(i);
-                    row[reader.GetName(i)] = value ?? "NULL";
-                }
-                results.Add(row);
-            }
-            
-            return results;
-        }
-
-        public class CustomQueryRequest
-        {
-            public string Query { get; set; } = string.Empty;
-        }
-
-        public class TableInfo
-        {
-            public string Name { get; set; } = string.Empty;
-            public int RowCount { get; set; }
-            public bool IsOutboxTable { get; set; }
-        }
-
-        public class OutboxStatistics
-        {
-            public int PendingMessages { get; set; }
-            public int DeliveredMessages { get; set; }
-            public int TotalMessages => PendingMessages + DeliveredMessages;
-            public string? Error { get; set; }
+            };
         }
     }
 }
