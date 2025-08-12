@@ -2,7 +2,6 @@
 using Messages;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
-using Api.Domains.OrderProcessing;
 
 namespace Api.Infrastructure
 {
@@ -13,47 +12,45 @@ namespace Api.Infrastructure
         }
 
         public DbSet<Message> Messages { get; set; }
-        public DbSet<OrderProcessingSagaState> SagaStates { get; set; }
         public DbSet<OutboxEvent> OutboxEvents { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
+            ConfigureMessages(modelBuilder);
+            ConfigureOutboxEvents(modelBuilder);
+        }
+
+        /// <summary>
+        /// Configure Message entity for generic message storage.
+        /// Used for storing original Kafka messages before saga processing.
+        /// </summary>
+        private static void ConfigureMessages(ModelBuilder modelBuilder)
+        {
             modelBuilder.Entity<Message>(entity =>
             {
-                // Use Id as primary key
+                // Use Id as primary key for message tracking
                 entity.HasKey(e => e.Id);
                 
-                // Configure StepData to be stored as JSON
+                // Configure StepData as JSON for flexible schema
                 entity.Property(e => e.StepData)
                     .HasConversion(
                         v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                         v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, object>()
                     );
-            });
-
-            // Configure Saga State
-            modelBuilder.Entity<OrderProcessingSagaState>(entity =>
-            {
-                entity.HasKey(e => e.CorrelationId);
                 
-                // Configure complex types as JSON
-                entity.Property(e => e.OriginalMessage)
-                    .HasConversion(
-                        v => v == null ? null : JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                        v => string.IsNullOrEmpty(v) ? null : JsonSerializer.Deserialize<Message>(v, (JsonSerializerOptions?)null)
-                    );
-                
-                entity.Property(e => e.CurrentState).HasMaxLength(50);
-                entity.Property(e => e.OriginalMessageJson).HasColumnType("TEXT");
-                entity.Property(e => e.OrderCreateResponse).HasColumnType("TEXT");
-                entity.Property(e => e.OrderProcessResponse).HasColumnType("TEXT");
-                entity.Property(e => e.OrderShipResponse).HasColumnType("TEXT");
-                entity.Property(e => e.LastError).HasColumnType("TEXT");
+                // Table naming for infrastructure separation
+                entity.ToTable("Messages");
             });
+        }
 
-            // Configure Outbox Event for guaranteed delivery pattern
+        /// <summary>
+        /// Configure OutboxEvent entity for guaranteed delivery pattern.
+        /// Infrastructure concern for ensuring reliable message processing.
+        /// </summary>
+        private static void ConfigureOutboxEvents(ModelBuilder modelBuilder)
+        {
             modelBuilder.Entity<OutboxEvent>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -83,6 +80,9 @@ namespace Api.Infrastructure
                 
                 entity.Property(e => e.ProcessedAt)
                     .HasColumnType("datetime");
+                
+                // Table naming for infrastructure separation
+                entity.ToTable("OutboxEvents");
             });
         }
     }

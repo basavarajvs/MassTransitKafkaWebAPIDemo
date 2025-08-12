@@ -8,7 +8,15 @@ using Confluent.Kafka;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+// Infrastructure context for generic message and outbox storage
 builder.Services.AddDbContext<MessageDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Domain-specific context for Order Processing saga state
+// WHY SEPARATE CONTEXT: Maintains domain boundaries and separation of concerns
+// - MessageDbContext: Infrastructure concerns (messages, outbox events)
+// - OrderProcessingDbContext: Domain concerns (saga state)
+builder.Services.AddDbContext<Api.Domains.OrderProcessing.OrderProcessingDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Add HttpClient for API calls
@@ -44,9 +52,12 @@ builder.Services.AddHostedService<Api.Infrastructure.OutboxProcessor>();
 // - Clear visibility of all factories
 // - Easy mocking for unit tests
 // - No reflection or magic registration
-builder.Services.AddScoped<Api.Domains.OrderProcessing.CommandFactories.OrderCreateCommandFactory>();
-builder.Services.AddScoped<Api.Domains.OrderProcessing.CommandFactories.OrderProcessCommandFactory>();
-builder.Services.AddScoped<Api.Domains.OrderProcessing.CommandFactories.OrderShipCommandFactory>();
+// Register command factories as Singleton to match saga lifetime
+// WHY SINGLETON: OrderProcessingSaga is singleton (required by MassTransit state machines)
+// Command factories are stateless and safe for singleton use
+builder.Services.AddSingleton<Api.Domains.OrderProcessing.CommandFactories.OrderCreateCommandFactory>();
+builder.Services.AddSingleton<Api.Domains.OrderProcessing.CommandFactories.OrderProcessCommandFactory>();
+builder.Services.AddSingleton<Api.Domains.OrderProcessing.CommandFactories.OrderShipCommandFactory>();
 
 // Configure MassTransit for message processing and saga orchestration
 builder.Services.AddMassTransit(x =>
@@ -60,8 +71,9 @@ builder.Services.AddMassTransit(x =>
     x.AddSagaStateMachine<Api.Domains.OrderProcessing.OrderProcessingSaga, Api.Domains.OrderProcessing.OrderProcessingSagaState>()
         .EntityFrameworkRepository(r =>
         {
-            // Use existing DbContext for saga state persistence
-            r.ExistingDbContext<MessageDbContext>();
+            // Use domain-specific DbContext for saga state persistence
+            // WHY DOMAIN CONTEXT: Maintains separation between infrastructure and domain concerns
+            r.ExistingDbContext<Api.Domains.OrderProcessing.OrderProcessingDbContext>();
             
             // CRITICAL: Use optimistic concurrency for SQLite compatibility
             // SQLite doesn't support SQL Server-style row locking (WITH UPDLOCK, ROWLOCK)
