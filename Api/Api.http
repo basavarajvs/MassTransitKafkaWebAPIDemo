@@ -4,3 +4,55 @@ GET {{Api_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+# Outbox Monitoring APIs
+
+### Get outbox status and table information
+GET {{Api_HostAddress}}/api/outbox/status
+Accept: application/json
+
+###
+
+### Get all outbox messages (latest 50)
+GET {{Api_HostAddress}}/api/outbox/messages
+Accept: application/json
+
+###
+
+### Get pending outbox messages only
+GET {{Api_HostAddress}}/api/outbox/pending
+Accept: application/json
+
+###
+
+### Get outbox messages with filters
+GET {{Api_HostAddress}}/api/outbox/messages?delivered=false&limit=20&correlationId=your-correlation-id
+Accept: application/json
+
+###
+
+### Get delivered messages only
+GET {{Api_HostAddress}}/api/outbox/messages?delivered=true&limit=10
+Accept: application/json
+
+###
+
+### Execute custom SQL query (SELECT only)
+POST {{Api_HostAddress}}/api/outbox/query
+Content-Type: application/json
+
+{
+  "query": "SELECT name FROM sqlite_master WHERE type='table'"
+}
+
+###
+
+### Custom query to see outbox table structure
+POST {{Api_HostAddress}}/api/outbox/query
+Content-Type: application/json
+
+{
+  "query": "SELECT sql FROM sqlite_master WHERE name LIKE '%Outbox%'"
+}
+
+###

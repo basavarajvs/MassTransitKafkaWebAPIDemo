@@ -9,15 +9,50 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Infrastructure context for generic message and outbox storage
+// Support both SQLite and PostgreSQL based on connection string
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<MessageDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        throw new InvalidOperationException("DefaultConnection connection string is required");
+    }
+    
+    // Auto-detect database provider from connection string
+    if (connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase) || 
+        connectionString.Contains("Server=", StringComparison.OrdinalIgnoreCase) && 
+        connectionString.Contains("Port=", StringComparison.OrdinalIgnoreCase))
+    {
+        // PostgreSQL connection string detected
+        options.UseNpgsql(connectionString);
+    }
+    else
+    {
+        // Default to SQLite for file-based connections
+        options.UseSqlite(connectionString);
+    }
+});
 
 // Domain-specific context for Order Processing saga state
 // WHY SEPARATE CONTEXT: Maintains domain boundaries and separation of concerns
 // - MessageDbContext: Infrastructure concerns (messages, outbox events)
 // - OrderProcessingDbContext: Domain concerns (saga state)
 builder.Services.AddDbContext<Api.Domains.OrderProcessing.OrderProcessingDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    // Use the same database provider detection logic as MessageDbContext
+    if (connectionString!.Contains("Host=", StringComparison.OrdinalIgnoreCase) || 
+        connectionString.Contains("Server=", StringComparison.OrdinalIgnoreCase) && 
+        connectionString.Contains("Port=", StringComparison.OrdinalIgnoreCase))
+    {
+        // PostgreSQL connection string detected
+        options.UseNpgsql(connectionString);
+    }
+    else
+    {
+        // Default to SQLite for file-based connections
+        options.UseSqlite(connectionString);
+    }
+});
 
 // Add HttpClient for API calls
 // Add HttpClient for external API calls from saga consumers
@@ -63,8 +98,19 @@ builder.Services.AddMassTransit(x =>
     // WHY OUTBOX PATTERN: Ensures reliable message delivery with database consistency
     x.AddEntityFrameworkOutbox<MessageDbContext>(o =>
     {
-        // Use SQLite database provider for outbox
-        o.UseSqlite();
+        // Auto-detect and configure database provider for outbox
+        if (connectionString!.Contains("Host=", StringComparison.OrdinalIgnoreCase) || 
+            connectionString.Contains("Server=", StringComparison.OrdinalIgnoreCase) && 
+            connectionString.Contains("Port=", StringComparison.OrdinalIgnoreCase))
+        {
+            // PostgreSQL outbox configuration
+            o.UsePostgres();
+        }
+        else
+        {
+            // SQLite outbox configuration
+            o.UseSqlite();
+        }
         
         // Configure polling settings (simplified - MassTransit handles delivery limits internally)
         o.QueryDelay = TimeSpan.FromSeconds(5);        // Check for messages every 5 seconds
