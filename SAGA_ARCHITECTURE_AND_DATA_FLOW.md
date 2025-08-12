@@ -279,6 +279,46 @@ During(WaitingForOrderCreate,
 
 ### **Why Each Component Exists**
 
+#### **0. DbContext Separation (Critical Architecture)**
+```csharp
+// ✅ GOOD: Separated contexts maintain domain boundaries
+namespace Api.Infrastructure
+{
+    public class MessageDbContext : DbContext  // ← Infrastructure concerns only
+    {
+        public DbSet<Message> Messages { get; set; }        // Generic message storage
+        public DbSet<OutboxEvent> OutboxEvents { get; set; } // Generic outbox pattern
+    }
+}
+
+namespace Api.Domains.OrderProcessing  
+{
+    public class OrderProcessingDbContext : DbContext  // ← Domain concerns only
+    {
+        public DbSet<OrderProcessingSagaState> SagaStates { get; set; } // Domain-specific state
+    }
+}
+```
+
+**🎯 Purpose:**
+- **Domain Separation**: Infrastructure and domain concerns are completely separated
+- **Reusability**: MessageDbContext can support any domain (Payment, Shipping, etc.)
+- **Testability**: Independent testing of infrastructure vs domain components
+- **Scalability**: Each domain can evolve its schema independently
+- **Maintainability**: Changes in one domain don't affect infrastructure
+
+**🚨 Anti-Pattern (What We Fixed):**
+```csharp
+// ❌ BAD: Infrastructure coupled to specific domain
+public class MessageDbContext : DbContext
+{
+    public DbSet<Message> Messages { get; set; }                    // ✅ Generic
+    public DbSet<OrderProcessingSagaState> SagaStates { get; set; } // ❌ Domain-specific!
+    public DbSet<OutboxEvent> OutboxEvents { get; set; }            // ✅ Generic
+}
+// Problem: Infrastructure knows about Order domain, can't support other domains
+```
+
 #### **1. Domain Constants**
 ```csharp
 public static class OrderDomainConstants
@@ -423,6 +463,33 @@ private static object ExtractShipData(Message message)
 - **Security**: Sensitive data doesn't go to irrelevant services
 - **Performance**: Smaller payloads for better network efficiency
 - **API Design**: External APIs can have focused, clean contracts
+
+### **Q: Why separate DbContexts instead of one shared context?**
+
+**A: Domain Boundaries & Architectural Integrity**
+```csharp
+// ✅ GOOD: Clear separation of concerns
+builder.Services.AddDbContext<MessageDbContext>(options => 
+    options.UseSqlite(connectionString));  // Infrastructure
+
+builder.Services.AddDbContext<OrderProcessingDbContext>(options => 
+    options.UseSqlite(connectionString));  // Order domain
+
+x.AddSagaStateMachine<OrderProcessingSaga, OrderProcessingSagaState>()
+    .EntityFrameworkRepository(r => 
+        r.ExistingDbContext<OrderProcessingDbContext>());  // Domain context
+
+// ❌ BAD: Mixed concerns in one context
+builder.Services.AddDbContext<MessageDbContext>(options => ...);
+// Contains both infrastructure entities AND domain entities
+```
+
+**Benefits:**
+- **Domain Isolation**: Order changes don't affect Payment or Shipping domains
+- **Team Independence**: Domain teams can work without coordinating schema changes
+- **Testing Clarity**: Unit tests focus on specific concerns (infrastructure vs domain)
+- **Future Scalability**: Easy to add new domains without touching existing code
+- **Migration Management**: Domain-specific migration history
 
 ### **Q: Why persist original message in saga state?**
 
