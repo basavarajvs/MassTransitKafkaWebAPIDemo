@@ -21,15 +21,15 @@ This document explains **WHY** each component exists in our saga framework, **HO
 sequenceDiagram
     participant Kafka as Kafka Topic
     participant Consumer as MessageConsumer
-    participant Outbox as OutboxEvents Table
+    participant Outbox as MassTransit Outbox
     participant Bus as In-Memory Bus
     participant Saga as OrderProcessingSaga
 
     Kafka->>Consumer: Message received
     Consumer->>Consumer: Save message to DB
-    Consumer->>Outbox: Save saga start event (atomic)
-    Consumer->>Bus: Try immediate publish
-    Note over Outbox: Guaranteed delivery via OutboxProcessor
+    Consumer->>Outbox: Publish saga event (MassTransit outbox captures)
+    Consumer->>Bus: Commit transaction
+    Note over Outbox: Guaranteed delivery via MassTransit
     Bus->>Saga: SagaStarted event
     Saga->>Saga: Initialize state & start workflow
 ```
@@ -37,7 +37,7 @@ sequenceDiagram
 **🤔 WHY this pattern?**
 
 - **Atomic Persistence**: Message and saga start event saved together - prevents message loss
-- **Guaranteed Delivery**: OutboxProcessor ensures saga starts even if immediate publish fails
+- **Guaranteed Delivery**: MassTransit outbox ensures saga starts even if immediate publish fails
 - **Idempotency**: Using `message.Id` as correlation ID prevents duplicate sagas
 - **Reliability**: System survives crashes between message receipt and saga start
 
@@ -287,7 +287,7 @@ namespace Api.Infrastructure
     public class MessageDbContext : DbContext  // ← Infrastructure concerns only
     {
         public DbSet<Message> Messages { get; set; }        // Generic message storage
-        public DbSet<OutboxEvent> OutboxEvents { get; set; } // Generic outbox pattern
+        // MassTransit outbox tables are automatically managed
     }
 }
 
@@ -314,7 +314,7 @@ public class MessageDbContext : DbContext
 {
     public DbSet<Message> Messages { get; set; }                    // ✅ Generic
     public DbSet<OrderProcessingSagaState> SagaStates { get; set; } // ❌ Domain-specific!
-    public DbSet<OutboxEvent> OutboxEvents { get; set; }            // ✅ Generic
+    // MassTransit outbox tables automatically managed               // ✅ Generic
 }
 // Problem: Infrastructure knows about Order domain, can't support other domains
 ```
@@ -603,10 +603,10 @@ SELECT CurrentState, LastUpdated, LastError
 FROM OrderProcessingSagaStates 
 WHERE CorrelationId = 'your-correlation-id';
 
--- Check pending outbox events
-SELECT * FROM OutboxEvents 
-WHERE NOT Processed 
-AND Data LIKE '%your-correlation-id%';
+-- Check pending MassTransit outbox events (table name varies by version)
+SELECT * FROM OutboxMessage 
+WHERE Delivered IS NULL
+AND Body LIKE '%your-correlation-id%';
 ```
 
 #### **3. API Calls Not Happening**
@@ -654,10 +654,8 @@ public record CallOrderCreateApi
 // Batch size affects performance vs latency tradeoff
 private readonly int _batchSize = 100; // ← Configurable based on load
 
-var pendingEvents = await dbContext.OutboxEvents
-    .Where(e => !e.Processed && e.ScheduledFor <= DateTime.UtcNow)
-    .Take(_batchSize) // ← Process in batches for efficiency
-    .ToListAsync();
+// MassTransit handles outbox processing automatically
+// No manual batch processing required
 ```
 
 ---

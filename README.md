@@ -55,46 +55,41 @@ In distributed systems, a classic problem occurs when saving business data and p
 ### **The Solution: Outbox Pattern**
 
 ```
-✅ AFTER (Outbox Pattern):
+✅ AFTER (MassTransit Outbox Pattern):
 1. BEGIN TRANSACTION
 2. Save Kafka message to database
-3. Save saga command to OutboxEvents table
+3. Publish saga event (MassTransit outbox captures)
 4. COMMIT TRANSACTION (both saved atomically)
-5. Try immediate publish (best effort)
-6. Background OutboxProcessor ensures delivery
+5. MassTransit delivers events reliably
+6. Built-in retry and error handling
 ```
 
 ### **How It Works**
 
-1. **MessageConsumer** saves original message + outbox event **atomically**
-2. **OutboxProcessor** background service polls for unprocessed events every 5 seconds
-3. Events are published to the in-memory bus with retry logic
-4. Exponential backoff for failed events (2, 4, 8, 16, 32 seconds)
-5. Dead letter handling after 5 failed attempts
+1. **MessageConsumer** saves original message and publishes saga event **atomically**
+2. **MassTransit Outbox** automatically captures published events in the same transaction
+3. **Built-in delivery service** handles reliable event delivery with retry logic
+4. **Configurable retry limits** and timeout handling
+5. **Automatic dead letter** processing after max delivery attempts
 
 ### **Database Schema**
 
-The `OutboxEvents` table stores events for guaranteed delivery:
+MassTransit automatically manages outbox tables for guaranteed delivery:
 
-| Column | Purpose | Example |
-|--------|---------|---------|
-| `Id` | Unique event identifier | `guid-123` |
-| `EventType` | For deserialization routing | `"OrderProcessingSagaStarted"` |
-| `Payload` | JSON serialized event data | `{"CorrelationId":"...", "OriginalMessage":{...}}` |
-| `ScheduledFor` | When to process (retry scheduling) | `2024-08-05 14:30:00` |
-| `Processed` | Completion status | `false` (pending) / `true` (done) |
-| `ProcessedAt` | Completion timestamp | `2024-08-05 14:30:15` |
-| `RetryCount` | Failed attempts count | `0` to `5` |
-| `LastError` | Error message for debugging | `"Timeout after 5 seconds"` |
+| Table | Purpose | Managed By |
+|-------|---------|------------|
+| `Messages` | Original Kafka messages | Application |
+| `OutboxMessage` | Pending events for delivery | MassTransit |
+| `OrderProcessingSagaStates` | Saga state tracking | Domain Context |
 
 ### **Benefits**
 
-| Aspect | Without Outbox | With Outbox |
-|--------|---------------|-------------|
+| Aspect | Without Outbox | With MassTransit Outbox |
+|--------|---------------|---------------------|
 | **Message Loss** | ❌ Commands lost on restart | ✅ Zero message loss |
 | **Delivery Guarantee** | ❌ At-most-once | ✅ Exactly-once |
 | **Restart Recovery** | ❌ Manual intervention | ✅ Automatic recovery |
-| **Monitoring** | ❌ No visibility | ✅ Full audit trail |
+| **Monitoring** | ❌ No visibility | ✅ Built-in diagnostics |
 | **Production Ready** | ❌ Unreliable | ✅ Battle-tested |
 
 ## Getting Started

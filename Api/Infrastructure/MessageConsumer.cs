@@ -4,7 +4,6 @@ using Messages;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using System;
-using System.Text.Json;
 
 namespace Api.Infrastructure
 {
@@ -80,53 +79,31 @@ namespace Api.Infrastructure
                 StartedAt = DateTime.UtcNow
             };
             
-            // 🔐 ATOMIC TRANSACTION: Save message and outbox event together
+            // 🔐 ATOMIC TRANSACTION: Save message and publish event using MassTransit outbox
+            // MassTransit's outbox automatically handles the dual-write problem
             using var transaction = await _dbContext.Database.BeginTransactionAsync();
-            OutboxEvent outboxEvent;
             
             try
             {
                 // 1. Save original message for audit trail
                 _dbContext.Messages.Add(message);
                 
-                // 2. Save saga command to outbox (SAME TRANSACTION - ATOMIC!)
-                outboxEvent = new OutboxEvent
-                {
-                    EventType = "OrderProcessingSagaStarted",
-                    Payload = JsonSerializer.Serialize(sagaStartedEvent),
-                    ScheduledFor = DateTime.UtcNow
-                };
-                _dbContext.OutboxEvents.Add(outboxEvent);
+                // 2. Publish saga event (MassTransit outbox will handle reliable delivery)
+                // The outbox middleware automatically captures this publish in the same transaction
+                await context.Publish(sagaStartedEvent);
                 
-                // 3. Commit both together (CRITICAL: Either both succeed or both fail)
+                // 3. Commit transaction (includes both message save and outbox event)
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
                 
-                _logger.LogInformation($"✅ Message and saga command saved atomically for message ID: {message.Id}");
+                _logger.LogInformation($"🚀 Saga started with correlation ID: {sagaCorrelationId} for message ID: {message.Id}");
+                _logger.LogInformation($"✅ Message saved and saga event added to outbox for reliable delivery");
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, $"❌ Failed to save message and saga command atomically for message ID: {message.Id}");
+                _logger.LogError(ex, $"❌ Failed to save message and publish saga event for message ID: {message.Id}");
                 throw; // MassTransit will retry the whole message consumption
-            }
-            
-            // 4. Try immediate publish (best effort - if this fails, outbox processor will handle it)
-            try
-            {
-                await context.Publish(sagaStartedEvent);
-                
-                // Mark as processed immediately if successful
-                outboxEvent.Processed = true;
-                outboxEvent.ProcessedAt = DateTime.UtcNow;
-                await _dbContext.SaveChangesAsync();
-                
-                _logger.LogInformation($"🚀 Saga started immediately with correlation ID: {sagaCorrelationId} for message ID: {message.Id}");
-            }
-            catch (Exception ex)
-            {
-                // Don't fail the entire operation - outbox processor will retry this
-                _logger.LogWarning(ex, $"⚠️ Immediate saga publish failed for message ID: {message.Id} - outbox processor will retry");
             }
         }
     }

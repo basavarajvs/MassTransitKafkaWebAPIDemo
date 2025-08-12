@@ -28,23 +28,20 @@ builder.Services.AddHttpClient();
 // Note: Step classes no longer need DI registration with Factory Interface Pattern
 // Sagas now use injected factories directly for command creation
 
-// Register Outbox Processor for guaranteed delivery pattern (Industry Standard)
+// MassTransit built-in outbox pattern configuration
 // 
-// ARCHITECTURAL DECISION: Outbox Pattern Implementation
-// WHY CHOSEN: Solves the dual-write problem in distributed systems
+// ARCHITECTURAL DECISION: Use MassTransit's Entity Framework Outbox
+// WHY CHOSEN: Production-proven outbox implementation with minimal maintenance
 // - PROBLEM: Saving business data + publishing events can fail partially
-// - SOLUTION: Save both in same database transaction (atomic)
+// - SOLUTION: MassTransit handles atomic transactions and delivery automatically
 // - RESULT: Zero message loss, exactly-once delivery semantics
 //
-// WHY HOSTED SERVICE: 
-// - Runs continuously in background to process failed/missed event publications
-// - Provides automatic recovery from application restarts without manual intervention
-// - Implements retry logic with exponential backoff for failed events
-// - Ensures no saga commands are lost even during system failures
-//
-// PERFORMANCE IMPACT: Minimal - polls every 5 seconds, processes 10 events per batch
-// INFRASTRUCTURE COST: Zero - uses existing SQLite database
-builder.Services.AddHostedService<Api.Infrastructure.OutboxProcessor>();
+// BENEFITS OVER CUSTOM IMPLEMENTATION:
+// - Battle-tested by thousands of applications
+// - Built-in retry logic and error handling
+// - Rich diagnostics and monitoring
+// - Less code to maintain and debug
+// - Configurable polling intervals and delivery limits
 
 // Register command factories for Factory Interface Pattern
 // WHY EXPLICIT REGISTRATION: 
@@ -62,6 +59,24 @@ builder.Services.AddSingleton<Api.Domains.OrderProcessing.CommandFactories.Order
 // Configure MassTransit for message processing and saga orchestration
 builder.Services.AddMassTransit(x =>
 {
+    // Configure MassTransit's built-in Entity Framework Outbox
+    // WHY OUTBOX PATTERN: Ensures reliable message delivery with database consistency
+    x.AddEntityFrameworkOutbox<MessageDbContext>(o =>
+    {
+        // Use SQLite database provider for outbox
+        o.UseSqlite();
+        
+        // Configure polling settings (simplified - MassTransit handles delivery limits internally)
+        o.QueryDelay = TimeSpan.FromSeconds(5);        // Check for messages every 5 seconds
+        o.QueryMessageLimit = 100;                     // Max messages per query
+        
+        // Use built-in delivery service (recommended for most scenarios)
+        o.UseBusOutbox();
+        
+        // Database transaction isolation level (use System.Data.IsolationLevel)
+        o.IsolationLevel = System.Data.IsolationLevel.ReadCommitted;
+    });
+
     // Register the Order Processing Saga with persistent state storage
     // WHY ENTITY FRAMEWORK REPOSITORY: 
     // - Saga state survives application restarts
@@ -91,15 +106,16 @@ builder.Services.AddMassTransit(x =>
 
     // Configure in-memory bus for saga events and commands
     // 
-    // ARCHITECTURAL DECISION: In-Memory Bus + Outbox Pattern Hybrid
+    // ARCHITECTURAL DECISION: In-Memory Bus + MassTransit Outbox Pattern
     // WHY IN-MEMORY: Saga events/commands are internal to this service
     // - Ultra-fast processing (microsecond latency vs. network round-trips)
     // - No additional infrastructure required (no RabbitMQ, ServiceBus, etc.)
     // - Perfect for internal orchestration within a single service boundary
     //
-    // WHY SAFE WITH OUTBOX: Outbox pattern provides the reliability guarantees
-    // - Events are persisted BEFORE publishing to in-memory bus
-    // - OutboxProcessor ensures delivery even if in-memory publish fails
+    // WHY MASSTRANSIT OUTBOX: Production-proven reliability with minimal maintenance
+    // - MassTransit handles atomic transactions and delivery automatically
+    // - Built-in retry logic and error handling
+    // - Rich diagnostics and monitoring capabilities
     // - Best of both worlds: Speed + Reliability
     //
     // EXTERNAL COMMUNICATION: Kafka handled separately below (different concerns)

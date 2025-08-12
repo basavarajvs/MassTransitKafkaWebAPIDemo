@@ -30,8 +30,8 @@ Our Factory Interface Pattern framework provides type-safe, fast saga implementa
 
 ```
 🛡️ RELIABILITY GUARANTEE:
-1. Your saga commands are saved to OutboxEvents table atomically
-2. OutboxProcessor ensures delivery even during failures
+1. Your saga events are captured by MassTransit outbox atomically
+2. MassTransit ensures delivery even during failures
 3. Exponential backoff handles transient errors
 4. Dead letter queues catch persistent failures
 5. Full audit trail for debugging and monitoring
