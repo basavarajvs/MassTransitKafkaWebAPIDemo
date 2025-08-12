@@ -596,3 +596,4 @@ var pendingEvents = await dbContext.OutboxEvents
 ---
 
 **🎯 This guide provides the "why" behind every architectural decision, helping developers understand not just how to implement sagas, but why the framework is designed this way. Use this alongside the [Onboarding Guide](ONBOARDING_NEW_SAGA.md) for complete understanding.**
+
